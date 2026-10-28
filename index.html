@@ -309,15 +309,15 @@
     ];
 
     const METRICS = [
-      { key: 'weight', label: '체중(kg)', color: '#4ade80', axis: 'y', active: true },
-      { key: 'muscle', label: '근육량(kg)', color: '#38bdf8', axis: 'y', active: false },
-      { key: 'fatRate', label: '체지방률(%)', color: '#facc15', axis: 'y', active: false },
-      { key: 'steps', label: '걸음수', color: '#c084fc', axis: 'y1', active: false },
-      { key: 'tdee', label: '총소모칼로리(TDEE)', color: '#fb923c', axis: 'y1', active: true },
-      { key: 'bmi', label: 'BMI', color: '#f472b6', axis: 'y', active: false },
-      { key: 'visceralFat', label: '내장지방', color: '#f87171', axis: 'y', active: false },
-      { key: 'boneMass', label: '뼈밀도(kg)', color: '#2dd4bf', axis: 'y', active: false },
-      { key: 'bodyScore', label: '바디점수', color: '#eab308', axis: 'y', active: false }
+      { key: 'weight', label: '체중(kg)', color: '#4ade80', axis: 'y', active: true, unit: 'kg' },
+      { key: 'muscle', label: '근육량(kg)', color: '#38bdf8', axis: 'y', active: false, unit: 'kg' },
+      { key: 'fatRate', label: '체지방률(%)', color: '#facc15', axis: 'y', active: false, unit: '%' },
+      { key: 'steps', label: '걸음수', color: '#c084fc', axis: 'y1', active: false, unit: '걸음' },
+      { key: 'tdee', label: '총소모칼로리(TDEE)', color: '#fb923c', axis: 'y1', active: true, unit: 'kcal' },
+      { key: 'bmi', label: 'BMI', color: '#f472b6', axis: 'y', active: false, unit: '' },
+      { key: 'visceralFat', label: '내장지방', color: '#f87171', axis: 'y', active: false, unit: '' },
+      { key: 'boneMass', label: '뼈밀도(kg)', color: '#2dd4bf', axis: 'y', active: false, unit: 'kg' },
+      { key: 'bodyScore', label: '바디점수', color: '#eab308', axis: 'y', active: false, unit: '점' }
     ];
 
     let currentData = [];
@@ -627,8 +627,12 @@
                   if (label) label += ': ';
                   if (context.parsed.y !== null) {
                     label += context.parsed.y.toLocaleString();
-                    if (context.dataset.yAxisID === 'y') label += 'kg';
-                    else if (context.dataset.label.includes('칼로리') || context.dataset.label.includes('TDEE')) label += ' kcal';
+                    const metricMeta = METRICS.find(m => m.label === context.dataset.label || (context.dataset.label.includes(m.label)));
+                    if (metricMeta && metricMeta.unit) {
+                      label += ' ' + metricMeta.unit;
+                    } else if (context.dataset.yAxisID === 'y') {
+                      label += ' kg';
+                    }
                   }
                   return label;
                 }
@@ -647,7 +651,9 @@
               grid: { color: 'rgba(255, 255, 255, 0.05)' },
               ticks: {
                 color: '#4ade80',
-                callback: function(val) { return Number(parseFloat(val).toFixed(1)) + 'kg'; }
+                callback: function(val) {
+                  return Number(parseFloat(val).toFixed(1));
+                }
               }
             },
             y1: {
@@ -657,7 +663,9 @@
               grid: { drawOnChartArea: false },
               ticks: {
                 color: '#c084fc',
-                callback: function(val) { return Math.round(val).toLocaleString(); }
+                callback: function(val) {
+                  return Math.round(val).toLocaleString();
+                }
               }
             }
           }
@@ -1164,7 +1172,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `health_data_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute("download", `health_data_${new Date().toISOString().slice(0, 10)}.json`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
