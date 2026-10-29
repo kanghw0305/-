@@ -304,4 +304,1142 @@
         </div>
         <div>
           <label class="block text-slate-400 mb-1">이동거리 (km)</label>
-          <input type="number" step="0.01" id="m_distance" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus
+          <input type="number" step="0.01" id="m_distance" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sky-400 mb-1">물 섭취 (ml)</label>
+          <input type="number" id="m_waterIntake" class="w-full bg-slate-900 border border-sky-900 rounded p-2 text-white focus:border-sky-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-emerald-400 mb-1">식사 섭취 (kcal)</label>
+          <input type="number" id="m_foodIntake" class="w-full bg-slate-900 border border-emerald-900 rounded p-2 text-white focus:border-emerald-500 outline-none">
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-slate-700">
+        <span id="queueStatus" class="text-xs text-indigo-400 font-medium"></span>
+        <div class="flex gap-2">
+          <button onclick="skipModalData()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs rounded text-slate-300 transition">건너뛰기</button>
+          <button onclick="saveModalData()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded text-white transition">저장 및 다음</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 커스텀 삭제 확인 모달 -->
+  <div id="confirmDialog" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center gap-3 text-rose-400">
+        <span class="text-2xl">⚠️</span>
+        <h4 id="confirmTitle" class="font-bold text-white text-base">데이터 삭제 확인</h4>
+      </div>
+      <p id="confirmMessage" class="text-xs text-slate-300 leading-relaxed">
+        정말로 모든 기록을 삭제하시겠습니까?<br>삭제 후에는 복구할 수 없습니다.
+      </p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeConfirmDialog()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs rounded text-slate-300 transition">취소</button>
+        <button id="confirmActionBtn" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-xs font-semibold rounded text-white transition">삭제하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 border border-slate-700 text-slate-200 px-4 py-2.5 rounded-lg shadow-xl text-xs flex items-center gap-2 transform translate-y-16 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastText">알림 메시지</span>
+  </div>
+
+  <script>
+    const SAMPLE_DATA = [
+      { date: "2026-10-22", weight: 97.8, muscle: 63.2, fatRate: 31.9, bmi: 30.2, visceralFat: 14, waterRate: 49.8, proteinRate: 15.8, boneMass: 3.40, bmr: 1890, bodyScore: 68, steps: 11200, distance: 7.2, calories: 920 },
+      { date: "2026-10-23", weight: 97.4, muscle: 63.0, fatRate: 31.8, bmi: 30.1, visceralFat: 14, waterRate: 50.1, proteinRate: 15.9, boneMass: 3.39, bmr: 1885, bodyScore: 69, steps: 12500, distance: 8.0, calories: 980 },
+      { date: "2026-10-24", weight: 97.2, muscle: 62.9, fatRate: 31.8, bmi: 30.0, visceralFat: 14, waterRate: 50.0, proteinRate: 15.9, boneMass: 3.38, bmr: 1880, bodyScore: 69, steps: 9800, distance: 6.3, calories: 810 },
+      { date: "2026-10-25", weight: 97.0, muscle: 62.8, fatRate: 31.7, bmi: 29.9, visceralFat: 13, waterRate: 50.3, proteinRate: 16.0, boneMass: 3.37, bmr: 1878, bodyScore: 70, steps: 14200, distance: 9.1, calories: 1100 },
+      { date: "2026-10-26", weight: 96.9, muscle: 62.7, fatRate: 31.7, bmi: 29.9, visceralFat: 13, waterRate: 50.2, proteinRate: 16.0, boneMass: 3.37, bmr: 1875, bodyScore: 70, steps: 10500, distance: 6.8, calories: 870 },
+      { date: "2026-10-27", weight: 96.9, muscle: 62.7, fatRate: 31.7, bmi: 29.9, visceralFat: 13, waterRate: 50.4, proteinRate: 16.1, boneMass: 3.36, bmr: 1874, bodyScore: 71, steps: 11800, distance: 7.5, calories: 940 },
+      { date: "2026-10-28", weight: 96.8, muscle: 62.66, fatRate: 31.7, bmi: 30.8, visceralFat: 14, waterRate: 48.7, proteinRate: 16.0, boneMass: 3.36, bmr: 1861, bodyScore: 46, steps: 13377, distance: 8.31, calories: 1055 }
+    ];
+
+    const METRICS = [
+      { key: 'weight', label: '체중(kg)', color: '#4ade80', axis: 'y', active: true, unit: 'kg' },
+      { key: 'muscle', label: '근육량(kg)', color: '#38bdf8', axis: 'y', active: false, unit: 'kg' },
+      { key: 'fatRate', label: '체지방률(%)', color: '#facc15', axis: 'y', active: false, unit: '%' },
+      { key: 'steps', label: '걸음수', color: '#c084fc', axis: 'y1', active: false, unit: '걸음' },
+      { key: 'tdee', label: '총소모칼로리(TDEE)', color: '#fb923c', axis: 'y1', active: true, unit: 'kcal' },
+      { key: 'bmi', label: 'BMI', color: '#f472b6', axis: 'y', active: false, unit: '' },
+      { key: 'visceralFat', label: '내장지방', color: '#f87171', axis: 'y', active: false, unit: '' },
+      { key: 'boneMass', label: '뼈밀도(kg)', color: '#2dd4bf', axis: 'y', active: false, unit: 'kg' },
+      { key: 'bodyScore', label: '바디점수', color: '#eab308', axis: 'y', active: false, unit: '점' },
+      { key: 'waterIntake', label: '물섭취(ml)', color: '#0ea5e9', axis: 'y1', active: false, unit: 'ml' },
+      { key: 'foodIntake', label: '식사(kcal)', color: '#10b981', axis: 'y1', active: true, unit: 'kcal' }
+    ];
+
+    let currentData = [];
+    let targetWeight = parseFloat(localStorage.getItem('targetWeight')) || 85.0;
+    let chartInstance = null;
+    let currentEditingDate = null;
+    
+    let imageQueue = [];
+    let queueTotal = 0;
+    
+    function addWater(amount) {
+      const today = getLocalDateString();
+      let row = currentData.find(d => d.date === today);
+      if (!row) {
+        row = { date: today, weight: null, muscle: null, fatRate: null, bmi: null, visceralFat: null, waterRate: null, proteinRate: null, boneMass: null, bmr: null, bodyScore: null, steps: null, distance: null, calories: null, waterIntake: 0, foodIntake: 0 };
+        currentData.push(row);
+      }
+      row.waterIntake = (row.waterIntake || 0) + amount;
+      saveData();
+      renderTable();
+      updateChart();
+      showToast(`${amount}ml 추가되었습니다. (오늘 총 ${row.waterIntake}ml)`, '💧');
+    }
+
+    function addCustomWater() {
+      const input = document.getElementById('customWaterInput');
+      const amount = parseInt(input.value, 10);
+      if (amount && amount > 0) {
+        addWater(amount);
+        input.value = '';
+      }
+    }
+
+    function addCustomFood() {
+      const input = document.getElementById('customFoodInput');
+      const amount = parseInt(input.value, 10);
+      if (amount && amount > 0) {
+        const today = getLocalDateString();
+        let row = currentData.find(d => d.date === today);
+        if (!row) {
+          row = { date: today, weight: null, muscle: null, fatRate: null, bmi: null, visceralFat: null, waterRate: null, proteinRate: null, boneMass: null, bmr: null, bodyScore: null, steps: null, distance: null, calories: null, waterIntake: 0, foodIntake: 0 };
+          currentData.push(row);
+        }
+        row.foodIntake = (row.foodIntake || 0) + amount;
+        saveData();
+        renderTable();
+        updateChart();
+        showToast(`${amount}kcal 누적되었습니다. (오늘 총 ${row.foodIntake}kcal)`, '🍚');
+        input.value = '';
+      }
+    }
+
+    function getLocalDateString() {
+      const offset = new Date().getTimezoneOffset() * 60000;
+      return new Date(Date.now() - offset).toISOString().slice(0, 10);
+    }
+
+    function loadData() {
+      const saved = localStorage.getItem('healthData');
+      if (saved !== null) {
+        try { return JSON.parse(saved); } catch(e) { return []; }
+      }
+      return SAMPLE_DATA;
+    }
+
+    function saveData() {
+      localStorage.setItem('healthData', JSON.stringify(currentData));
+      updateSummaryCards();
+    }
+
+    function updateTargetWeight(val) {
+      const num = parseFloat(val);
+      if (!isNaN(num) && num >= 30 && num <= 200) {
+        targetWeight = num;
+        localStorage.setItem('targetWeight', targetWeight);
+        updateSummaryCards();
+        updateChart();
+        showToast(`목표 체중이 ${targetWeight}kg으로 설정되었습니다.`, "🎯");
+      }
+    }
+
+    function updateSummaryCards() {
+      const targetInput = document.getElementById('targetWeightInput');
+      if (targetInput && document.activeElement !== targetInput) {
+        targetInput.value = targetWeight;
+      }
+
+      if (currentData.length === 0) {
+        document.getElementById('summaryLatestDate').innerText = '-';
+        document.getElementById('summaryCurrentWeight').innerText = '- kg';
+        document.getElementById('summaryWeightDelta').innerText = '-';
+        document.getElementById('summaryRemainBadge').innerText = '-';
+        document.getElementById('goalProgressBar').style.width = '0%';
+        document.getElementById('summaryMuscle').innerText = '-';
+        document.getElementById('summaryFat').innerText = '-';
+        document.getElementById('summaryAvgSteps').innerText = '-';
+        document.getElementById('summaryAvgCal').innerText = '- kcal';
+        return;
+      }
+
+      const sorted = [...currentData].sort((a, b) => a.date.localeCompare(b.date));
+      const weightRecords = sorted.filter(d => d.weight !== null && d.weight !== undefined);
+      const latest = weightRecords.length > 0 ? weightRecords[weightRecords.length - 1] : sorted[sorted.length - 1];
+      const prev = weightRecords.length > 1 ? weightRecords[weightRecords.length - 2] : null;
+      const first = weightRecords.length > 0 ? weightRecords[0] : null;
+
+      document.getElementById('summaryLatestDate').innerText = latest.date;
+
+      if (latest.weight !== null && latest.weight !== undefined) {
+        document.getElementById('summaryCurrentWeight').innerText = `${latest.weight} kg`;
+        if (prev && prev.weight) {
+          const diff = (latest.weight - prev.weight).toFixed(2);
+          const sign = diff > 0 ? '+' : '';
+          const deltaEl = document.getElementById('summaryWeightDelta');
+          deltaEl.innerText = `직전 대비 ${sign}${Number(diff)}kg`;
+          deltaEl.className = `text-xs font-medium px-1.5 py-0.5 rounded ${diff <= 0 ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-rose-950 text-rose-300 border border-rose-800'}`;
+        } else {
+          document.getElementById('summaryWeightDelta').innerText = '첫 기록';
+        }
+
+        const badge = document.getElementById('summaryRemainBadge');
+        const progressBar = document.getElementById('goalProgressBar');
+        const startW = (first && first.weight !== null && first.weight !== undefined) ? first.weight : latest.weight;
+
+        if (latest.weight === targetWeight) {
+          badge.innerText = '🎉 목표 달성!';
+          progressBar.style.width = '100%';
+        } else if (targetWeight < startW) {
+          const toGo = (latest.weight - targetWeight).toFixed(1);
+          if (latest.weight <= targetWeight) {
+            badge.innerText = '🎉 목표 달성!';
+            progressBar.style.width = '100%';
+          } else {
+            badge.innerText = `목표까지 -${toGo}kg`;
+            const totalNeed = Math.max(0.1, startW - targetWeight);
+            const done = Math.max(0, startW - latest.weight);
+            const pct = Math.min(100, Math.max(0, Math.round((done / totalNeed) * 100)));
+            progressBar.style.width = `${pct}%`;
+          }
+        } else {
+          const toGo = (targetWeight - latest.weight).toFixed(1);
+          if (latest.weight >= targetWeight) {
+            badge.innerText = '🎉 목표 달성!';
+            progressBar.style.width = '100%';
+          } else {
+            badge.innerText = `목표까지 +${toGo}kg`;
+            const totalNeed = Math.max(0.1, targetWeight - startW);
+            const done = Math.max(0, latest.weight - startW);
+            const pct = Math.min(100, Math.max(0, Math.round((done / totalNeed) * 100)));
+            progressBar.style.width = `${pct}%`;
+          }
+        }
+      }
+
+      document.getElementById('summaryMuscle').innerText = latest.muscle ? `${latest.muscle}kg` : '-';
+      document.getElementById('summaryFat').innerText = latest.fatRate ? `${latest.fatRate}%` : '-';
+
+      const stepRecords = sorted.filter(d => d.steps !== null && d.steps !== undefined).slice(-7);
+      if (stepRecords.length > 0) {
+        const avgS = Math.round(stepRecords.reduce((acc, r) => acc + r.steps, 0) / stepRecords.length);
+        const avgTdee = Math.round(stepRecords.reduce((acc, r) => {
+          const bmr = r.bmr || 0;
+          const cal = r.calories || 0;
+          return acc + (bmr + cal);
+        }, 0) / stepRecords.length);
+        document.getElementById('summaryAvgSteps').innerText = avgS.toLocaleString();
+        document.getElementById('summaryAvgCal').innerText = `평균 ${avgTdee.toLocaleString()} kcal`;
+      } else {
+        document.getElementById('summaryAvgSteps').innerText = '-';
+        document.getElementById('summaryAvgCal').innerText = '- kcal';
+      }
+
+      const today = getLocalDateString();
+      const todayRow = currentData.find(d => d.date === today);
+      const food = todayRow && todayRow.foodIntake ? todayRow.foodIntake : 0;
+      const water = todayRow && todayRow.waterIntake ? todayRow.waterIntake : 0;
+      
+      document.getElementById('quickFoodTotal').innerText = food.toLocaleString() + ' kcal';
+      document.getElementById('quickWaterTotal').innerText = water.toLocaleString() + ' ml';
+      
+      document.getElementById('summaryFood').innerText = food.toLocaleString() + ' kcal';
+      document.getElementById('summaryWater').innerText = water.toLocaleString() + ' ml';
+      
+      const waterPct = Math.min(100, Math.max(0, Math.round((water / 2000) * 100)));
+      document.getElementById('waterProgressBar').style.width = `${waterPct}%`;
+      document.getElementById('summaryWaterPct').innerText = `${waterPct}% 달성`;
+
+      // 소모(OUT) = 오늘(또는 최근) 기초대사량 + 오늘 활동 소모량
+      const baseBmr = (todayRow && todayRow.bmr) ? todayRow.bmr : (latest && latest.bmr ? latest.bmr : 0);
+      const todayCal = (todayRow && todayRow.calories) ? todayRow.calories : 0;
+      const tdee = (baseBmr > 0 || todayCal > 0) ? (baseBmr + todayCal) : 0;
+      document.getElementById('summaryTdee').innerText = tdee ? tdee.toLocaleString() + ' kcal' : '-';
+
+      const calBadge = document.getElementById('summaryCalBadge');
+      if (tdee > 0) {
+        const diff = food - tdee;
+        if (diff > 0) {
+          calBadge.innerText = `+${diff.toLocaleString()} (초과)`;
+          calBadge.className = "text-[11px] font-semibold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
+        } else {
+          calBadge.innerText = `${diff.toLocaleString()} (유지/감량)`;
+          calBadge.className = "text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400";
+        }
+      } else {
+        calBadge.innerText = "소모량 미입력";
+        calBadge.className = "text-[11px] text-slate-500";
+      }
+    }
+
+    function showToast(text, icon = '✅') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastIcon').innerText = icon;
+      document.getElementById('toastText').innerText = text;
+      toast.classList.remove('translate-y-16', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-16', 'opacity-0');
+      }, 2500);
+    }
+
+    let pendingConfirmAction = null;
+    function openConfirm(title, message, btnText, onConfirm) {
+      document.getElementById('confirmTitle').innerText = title;
+      document.getElementById('confirmMessage').innerHTML = message;
+      const actBtn = document.getElementById('confirmActionBtn');
+      actBtn.innerText = btnText;
+      pendingConfirmAction = onConfirm;
+      actBtn.onclick = () => {
+        if (pendingConfirmAction) pendingConfirmAction();
+        closeConfirmDialog();
+      };
+      document.getElementById('confirmDialog').classList.remove('hidden');
+    }
+
+    function closeConfirmDialog() {
+      document.getElementById('confirmDialog').classList.add('hidden');
+      pendingConfirmAction = null;
+    }
+
+    function confirmClearAll() {
+      openConfirm(
+        "전체 데이터 비우기",
+        "정말로 모든 기록을 삭제하시겠습니까?<br><span class='text-rose-400 font-semibold'>삭제 후에는 저장된 모든 데이터가 초기화됩니다.</span>",
+        "전체 삭제",
+        () => {
+          currentData = [];
+          saveData();
+          renderTable();
+          updateChart();
+          showToast("모든 데이터가 깔끔하게 초기화되었습니다.", "🗑️");
+        }
+      );
+    }
+
+    function restoreSampleData() {
+      openConfirm(
+        "샘플 데이터 복원",
+        "기본 7일치 샘플 데이터로 복원하시겠습니까?",
+        "복원하기",
+        () => {
+          currentData = JSON.parse(JSON.stringify(SAMPLE_DATA));
+          saveData();
+          renderTable();
+          updateChart();
+          showToast("기본 샘플 데이터가 복원되었습니다.", "🔄");
+        }
+      );
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      currentData = loadData();
+      updateSummaryCards();
+      renderChips();
+      renderTable();
+      initChart();
+      initClipboardAndDrop();
+    });
+
+    function initClipboardAndDrop() {
+      window.addEventListener('paste', (e) => {
+        const items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+        const files = [];
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            const f = items[i].getAsFile();
+            if (f) files.push(f);
+          }
+        }
+        if (files.length > 0) {
+          e.preventDefault();
+          startProcessingFiles(files);
+        }
+      });
+
+      const dropZone = document.body;
+      if (dropZone) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+          dropZone.addEventListener(eventName, (e) => { e.preventDefault(); }, false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+          const dt = e.dataTransfer;
+          const files = dt ? Array.from(dt.files).filter(f => f.type.startsWith('image/')) : [];
+          if (files.length > 0) {
+            startProcessingFiles(files);
+          }
+        }, false);
+      }
+    }
+
+    function renderChips() {
+      const container = document.getElementById('metricChips');
+      container.innerHTML = '';
+      METRICS.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = `px-2.5 py-1 rounded-full text-xs font-medium border transition ${
+          m.active 
+            ? 'bg-slate-700 border-indigo-400 text-white shadow-sm' 
+            : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+        }`;
+        btn.innerHTML = `<span class="inline-block w-2 h-2 rounded-full mr-1.5" style="background:${m.color}"></span>${m.label}`;
+        btn.onclick = () => {
+          m.active = !m.active;
+          renderChips();
+          updateChart();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('dataTableBody');
+      tbody.innerHTML = '';
+
+      if (currentData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-slate-500 text-xs">기록된 데이터가 없습니다. 상단에서 이미지를 추가해보세요.</td></tr>`;
+        return;
+      }
+
+      const sorted = [...currentData].sort((a, b) => b.date.localeCompare(a.date));
+
+      sorted.forEach(row => {
+        const bmr = row.bmr || 0;
+        const cal = row.calories || 0;
+        const tdee = (bmr > 0 || cal > 0) ? (bmr + cal) : '-';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-700/35 transition cursor-pointer";
+        tr.onclick = (e) => {
+          if (e.target.tagName.toLowerCase() !== 'button') editExistingRow(row.date);
+        };
+        tr.innerHTML = `
+          <td class="p-2.5 font-medium text-indigo-300 underline decoration-dotted" title="클릭하여 수정">${row.date}</td>
+          <td class="p-2.5 font-semibold text-emerald-400">${row.weight ?? '-'}</td>
+          <td class="p-2.5">${row.muscle ?? '-'}</td>
+          <td class="p-2.5">${row.fatRate ?? '-'}</td>
+          <td class="p-2.5">${row.bmi ?? '-'}</td>
+          <td class="p-2.5">${row.visceralFat ?? '-'}</td>
+          <td class="p-2.5">${row.waterRate ?? '-'}</td>
+          <td class="p-2.5">${row.proteinRate ?? '-'}</td>
+          <td class="p-2.5">${row.boneMass ?? '-'}</td>
+          <td class="p-2.5">${row.bmr ?? '-'}</td>
+          <td class="p-2.5 font-bold text-emerald-400 bg-emerald-950/25">${row.foodIntake ? row.foodIntake.toLocaleString() + ' kcal' : '-'}</td>
+          <td class="p-2.5 font-bold text-sky-400 bg-sky-950/25">${row.waterIntake ? row.waterIntake.toLocaleString() + ' ml' : '-'}</td>
+          <td class="p-2.5 font-bold text-orange-400 bg-orange-950/25">${tdee !== '-' ? tdee.toLocaleString() + ' kcal' : '-'}</td>
+          <td class="p-2.5">${row.calories ?? '-'}</td>
+          <td class="p-2.5">${row.bodyScore ?? '-'}</td>
+          <td class="p-2.5 font-semibold text-purple-300">${row.steps ? row.steps.toLocaleString() : '-'}</td>
+          <td class="p-2.5">${row.distance ?? '-'}</td>
+          <td class="p-2.5 text-center space-x-1">
+            <button onclick="event.stopPropagation(); editExistingRow('${row.date}')" class="text-sky-400 hover:text-sky-300 text-xs px-2 py-0.5 rounded bg-sky-950/40 border border-sky-800">수정</button>
+            <button onclick="event.stopPropagation(); deleteRow('${row.date}')" class="text-rose-400 hover:text-rose-300 text-xs px-2 py-0.5 rounded bg-rose-950/40 border border-rose-800">삭제</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function editExistingRow(date) {
+      const row = currentData.find(d => d.date === date);
+      if (!row) return;
+      currentEditingDate = date;
+      document.getElementById('modalTitle').innerText = "기존 데이터 수정";
+      document.getElementById('modalSubtitle').innerText = `${date} 기록을 수정합니다.`;
+      document.getElementById('queueStatus').innerText = "";
+      
+      const keys = ["date", "weight", "muscle", "fatRate", "bmi", "visceralFat", "waterRate", "proteinRate", "boneMass", "bmr", "bodyScore", "steps", "distance", "calories", "waterIntake", "foodIntake"];
+      keys.forEach(k => {
+        const input = document.getElementById(`m_${k}`);
+        if (input) input.value = (row[k] !== null && row[k] !== undefined) ? row[k] : "";
+      });
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function openEmptyModal() {
+      currentEditingDate = null;
+      const today = getLocalDateString();
+      document.getElementById('modalTitle').innerText = "직접 기록 추가";
+      document.getElementById('modalSubtitle').innerText = "새로운 날짜의 건강 데이터를 직접 입력합니다.";
+      document.getElementById('queueStatus').innerText = "";
+      
+      const keys = ["weight", "muscle", "fatRate", "bmi", "visceralFat", "waterRate", "proteinRate", "boneMass", "bmr", "bodyScore", "steps", "distance", "calories"];
+      document.getElementById('m_date').value = today;
+      keys.forEach(k => {
+        const input = document.getElementById(`m_${k}`);
+        if (input) input.value = "";
+      });
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function deleteRow(date) {
+      openConfirm(
+        "단일 기록 삭제",
+        `[${date}] 날짜의 기록을 삭제하시겠습니까?`,
+        "삭제",
+        () => {
+          currentData = currentData.filter(d => d.date !== date);
+          saveData();
+          renderTable();
+          updateChart();
+          showToast(`${date} 기록이 삭제되었습니다.`, "🗑️");
+        }
+      );
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('healthChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#e2e8f0',
+              bodyColor: '#cbd5e1',
+              borderColor: '#334155',
+              borderWidth: 1,
+              callbacks: {
+                title: function(context) {
+                  if (!context || !context.length) return '';
+                  const idx = context[0].dataIndex;
+                  const sorted = [...currentData].sort((a, b) => a.date.localeCompare(b.date));
+                  return sorted[idx] ? sorted[idx].date : context[0].label;
+                },
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) label += ': ';
+                  if (context.parsed.y !== null) {
+                    label += context.parsed.y.toLocaleString();
+                    const unit = context.dataset.unit;
+                    if (unit) {
+                      label += ' ' + unit;
+                    }
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 11 } }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: {
+                color: '#4ade80',
+                callback: function(val) {
+                  return Number(parseFloat(val).toFixed(1));
+                }
+              }
+            },
+            y1: {
+              type: 'linear',
+              display: false,
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              ticks: {
+                color: '#c084fc',
+                callback: function(val) {
+                  return Math.round(val).toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+      updateChart();
+    }
+
+    function updateChart() {
+      if (!chartInstance) return;
+
+      if (currentData.length === 0) {
+        chartInstance.data.labels = [];
+        chartInstance.data.datasets = [];
+        chartInstance.update();
+        return;
+      }
+
+      const sorted = [...currentData].sort((a, b) => a.date.localeCompare(b.date));
+      const labels = sorted.map(d => d.date.slice(5));
+
+      let hasY1 = false;
+      const datasets = [];
+
+      METRICS.filter(m => m.active).forEach(m => {
+        if (m.axis === 'y1') hasY1 = true;
+        
+        let dataPoints = [];
+        if (m.key === 'tdee') {
+          dataPoints = sorted.map(d => {
+            const baseBmr = (d && d.bmr) ? d.bmr : 0;
+            const todayCal = (d && d.calories) ? d.calories : 0;
+            return (baseBmr > 0 || todayCal > 0) ? (baseBmr + todayCal) : null;
+          });
+        } else {
+          dataPoints = sorted.map(d => (d[m.key] !== null && d[m.key] !== undefined) ? d[m.key] : null);
+        }
+
+        datasets.push({
+          label: m.label,
+          data: dataPoints,
+          borderColor: m.color,
+          backgroundColor: m.color + '22',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          yAxisID: m.axis,
+          tension: 0.25,
+          spanGaps: true,
+          unit: m.unit
+        });
+      });
+
+      const weightActive = METRICS.find(m => m.key === 'weight' && m.active);
+      if (weightActive && targetWeight) {
+        datasets.push({
+          label: `🎯 목표 체중 (${targetWeight}kg)`,
+          data: labels.map(() => targetWeight),
+          borderColor: '#f43f5e',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          yAxisID: 'y',
+          fill: false,
+          unit: 'kg'
+        });
+      }
+
+      chartInstance.data.labels = labels;
+      chartInstance.data.datasets = datasets;
+      chartInstance.options.scales.y1.display = hasY1;
+      chartInstance.update();
+    }
+
+    function exportJSON() {
+      if (currentData.length === 0) {
+        showToast("백업할 데이터가 없습니다.", "ℹ️");
+        return;
+      }
+      const backupPayload = { targetWeight: targetWeight, data: currentData };
+      const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `health_backup_${getLocalDateString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("백업 파일(JSON)이 다운로드되었습니다.", "💾");
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (Array.isArray(parsed)) {
+            currentData = parsed;
+          } else if (parsed && Array.isArray(parsed.data)) {
+            currentData = parsed.data;
+            if (parsed.targetWeight) {
+              targetWeight = parsed.targetWeight;
+              localStorage.setItem('targetWeight', targetWeight);
+            }
+          }
+          saveData();
+          renderTable();
+          updateChart();
+          showToast("데이터가 성공적으로 복원되었습니다!", "🎉");
+        } catch (err) {
+          showToast("올바른 JSON 백업 파일이 아닙니다.", "⚠️");
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    /* ==========================================================================
+       [OCR 100% 원본 복구] : 3중 복합 스캔(원본+반전본+크롭) 파이프라인 완벽 롤백 
+       - 원본의 강력한 인식률을 담당하던 로직을 그대로 살리고, Mi Fitness 날짜 필터만 결합
+       ========================================================================== */
+
+    // 1. [원본 복구] 원본 이미지 색상 반전 (Blob 반환 방식 유지 + Mi Fitness 필터 추가)
+    function createCleanContrastImage(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          
+          // [원본 로직] 첫 번째 픽셀로 초록색 배경(Zepp Life) 감지
+          const isGreenBg = (d[1] > 140 && d[0] < 100);
+          
+          // Mi Fitness 주황색 감지 (상단 중앙 픽셀 기준)
+          const midX = Math.floor(canvas.width / 2);
+          const idx = (10 * canvas.width + midX) * 4;
+          const r = d[idx]; const g = d[idx+1]; const b = d[idx+2];
+          const isOrangeBg = (r > 200 && g > 130 && g < 220 && b < 150);
+
+          if (isGreenBg) {
+            for (let i = 0; i < d.length; i += 4) {
+              const cr = d[i];
+              const gray = Math.max(0, Math.min(255, Math.round(255 - (cr - 30) * 1.35)));
+              d[i] = gray; d[i + 1] = gray; d[i + 2] = gray;
+            }
+          } else if (isOrangeBg) {
+            for (let i = 0; i < d.length; i += 4) {
+              const br = (d[i] * 299 + d[i+1] * 587 + d[i+2] * 114) / 1000;
+              const color = br < 150 ? 0 : 255;
+              d[i] = color; d[i + 1] = color; d[i + 2] = color;
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
+          canvas.toBlob(blob => resolve(blob), 'image/png');
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    // 2. [원본 복구] 체중 & 바디점수 특정 좌표 크롭 인식 (가장 강력한 타겟팅)
+    async function recognizeTopRegions(file, worker) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = async () => {
+          try {
+            // 바디점수 영역
+            const cScore = document.createElement('canvas');
+            const sx1 = Math.floor(img.width * 0.25);
+            const sy1 = Math.floor(img.height * 0.16);
+            const sw1 = Math.floor(img.width * 0.50);
+            const sh1 = Math.floor(img.height * 0.11);
+            cScore.width = 200;
+            cScore.height = Math.max(60, Math.floor(200 * (sh1 / sw1)));
+            const ctx1 = cScore.getContext('2d');
+            ctx1.drawImage(img, sx1, sy1, sw1, sh1, 0, 0, cScore.width, cScore.height);
+            const d1 = ctx1.getImageData(0, 0, cScore.width, cScore.height);
+            for (let i = 0; i < d1.data.length; i += 4) {
+              const isW = (d1.data[i] > 180 && d1.data[i + 2] > 150);
+              const v = isW ? 0 : 255;
+              d1.data[i] = v; d1.data[i+1] = v; d1.data[i+2] = v;
+            }
+            ctx1.putImageData(d1, 0, 0);
+
+            // 체중 영역
+            const cWeight = document.createElement('canvas');
+            const sx2 = Math.floor(img.width * 0.05);
+            const sy2 = Math.floor(img.height * 0.34);
+            const sw2 = Math.floor(img.width * 0.43);
+            const sh2 = Math.floor(img.height * 0.075);
+            cWeight.width = 240;
+            cWeight.height = Math.max(60, Math.floor(240 * (sh2 / sw2)));
+            const ctx2 = cWeight.getContext('2d');
+            ctx2.drawImage(img, sx2, sy2, sw2, sh2, 0, 0, cWeight.width, cWeight.height);
+            const d2 = ctx2.getImageData(0, 0, cWeight.width, cWeight.height);
+            for (let i = 0; i < d2.data.length; i += 4) {
+              const isW = (d2.data[i] > 175 && d2.data[i + 2] > 140);
+              const v = isW ? 0 : 255;
+              d2.data[i] = v; d2.data[i+1] = v; d2.data[i+2] = v;
+            }
+            ctx2.putImageData(d2, 0, 0);
+
+            // 메모리 안전성을 위해 순차 실행(await) 적용
+            const retScore = await worker.recognize(cScore.toDataURL('image/png'));
+            const retWeight = await worker.recognize(cWeight.toDataURL('image/png'));
+
+            const scoreMatch = retScore.data.text.match(/([1-9]\d)/);
+            const bodyScore = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
+
+            let weight = null;
+            const wMatch = retWeight.data.text.match(/(\d{2,3}\s*[\.,]\s*\d{1,2})/);
+            if (wMatch) {
+              weight = parseFloat(wMatch[1].replace(/\s/g, '').replace(',', '.'));
+            }
+            resolve({ bodyScore, weight });
+          } catch (e) {
+            resolve({ bodyScore: null, weight: null });
+          }
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    function handleImageSelect(event) {
+      const files = Array.from(event.target.files);
+      if (files.length === 0) return;
+      event.target.value = '';
+      startProcessingFiles(files);
+    }
+
+    function startProcessingFiles(files) {
+      imageQueue = files;
+      queueTotal = files.length;
+      processNextQueueItem();
+    }
+
+    // 3. [원본 복구] 원본 + 반전본 + 크롭본 동시 융합 파이프라인
+    async function processNextQueueItem() {
+      if (imageQueue.length === 0) {
+        document.getElementById('ocrProgressBox').classList.add('hidden');
+        showToast("모든 이미지 처리가 완료되었습니다!", "✨");
+        return;
+      }
+
+      const file = imageQueue.shift();
+      const currentIdx = queueTotal - imageQueue.length;
+
+      const progressBox = document.getElementById('ocrProgressBox');
+      const progressBar = document.getElementById('ocrProgressBar');
+      const progressText = document.getElementById('ocrPercent');
+      const statusText = document.getElementById('ocrStatusText');
+
+      progressBox.classList.remove('hidden');
+
+      const updateProgress = (pct, msg) => {
+        progressBar.style.width = `${pct}%`;
+        progressText.innerText = `${pct}%`;
+        statusText.innerText = `[${currentIdx}/${queueTotal}] ${msg}`;
+      };
+
+      try {
+        updateProgress(15, "OCR 엔진 및 이미지 준비 중...");
+        
+        // 메모리 절약을 위해 Worker를 매번 새로 생성/종료
+        const worker = await Tesseract.createWorker('kor+eng');
+        const cleanBlob = await createCleanContrastImage(file);
+
+        updateProgress(45, "원본 및 반전 이미지 정밀 분석 중...");
+        
+        // 폰 튕김 방지를 위해 Promise.all 대신 순차 실행으로 안전하게 전환
+        const rawRet = await worker.recognize(file);
+        updateProgress(65, "크롭 영역 정밀 분석 중...");
+        const cleanRet = await worker.recognize(cleanBlob);
+        updateProgress(85, "세부 수치 추출 중...");
+        const topRegions = await recognizeTopRegions(file, worker);
+
+        await worker.terminate();
+
+        updateProgress(100, "판독 완료!");
+        setTimeout(() => progressBox.classList.add('hidden'), 350);
+
+        // 원본의 핵심인 두 결과 합치기 복구
+        const combinedText = rawRet.data.text + "\n" + cleanRet.data.text;
+        parseAndOpenModal(combinedText, topRegions, currentIdx, queueTotal);
+
+      } catch (err) {
+        console.error("OCR Error:", err);
+        showToast(`OCR 처리 오류 (${currentIdx}/${queueTotal}): ` + err.message, "⚠️");
+        progressBox.classList.add('hidden');
+        processNextQueueItem();
+      }
+    }
+
+    function normalizeDecimal(val, minValid, maxValid) {
+      let num = parseFloat(val);
+      if (isNaN(num)) return null;
+      while (num > maxValid) { num = num / 10; }
+      if (num >= minValid && num <= maxValid) { return Number(num.toFixed(2)); }
+      return null;
+    }
+
+    // 4. [원본 복구] topRegions(바디점수, 체중) 우선 적용
+    function parseAndOpenModal(text, topRegions = { bodyScore: null, weight: null }, curr = 1, total = 1) {
+      const clean = text.replace(/\r/g, "");
+      const isActivity = clean.includes("Mi Fitness") || 
+                         clean.includes("소모했습니다") || 
+                         clean.includes("닭다리") || 
+                         (clean.includes("걸음") && clean.includes("km"));
+
+      const today = getLocalDateString();
+      const currentYear = new Date().getFullYear();
+      let parsed = {
+        date: today,
+        weight: "", muscle: "", fatRate: "", bmi: "", visceralFat: "",
+        waterRate: "", proteinRate: "", boneMass: "", bmr: "", bodyScore: "",
+        steps: "", distance: "", calories: "",
+        waterIntake: "", foodIntake: ""
+      };
+
+      if (isActivity) {
+        // [해결 1] 샤오미 Mi Fitness 날짜 유연 추출
+        const dMatch = clean.match(/(\d{4})\s*[년\.\-\/\s]?\s*(\d{1,2})\s*[월\.\-\/\s]?\s*(\d{1,2})/);
+        if (dMatch) {
+          const y = dMatch[1];
+          const m = dMatch[2].padStart(2, '0');
+          const d = dMatch[3].padStart(2, '0');
+          if (parseInt(m, 10) >= 1 && parseInt(m, 10) <= 12 && parseInt(d, 10) >= 1 && parseInt(d, 10) <= 31) {
+            parsed.date = `${y}-${m}-${d}`;
+          }
+        }
+        const distMatch = clean.match(/(\d+\.\d+)\s*km/i);
+        if (distMatch) parsed.distance = parseFloat(distMatch[1]);
+        const stepMatch = clean.match(/(\d{3,6})\s*걸음/);
+        if (stepMatch) parsed.steps = parseInt(stepMatch[1].replace(/,/g, ''), 10);
+        const calMatch = clean.match(/(\d{2,5})\s*kcal/i);
+        if (calMatch) parsed.calories = parseInt(calMatch[1].replace(/,/g, ''), 10);
+      } else {
+        // 인바디 Zepp Life
+        const dMatchFull = clean.match(/(\d{4})[\.\-\/년\s]+(\d{1,2})[\.\-\/월\s]+(\d{1,2})/);
+        const dMatch = clean.match(/(\d{1,2})\/(\d{1,2})/);
+        if (dMatchFull) {
+          parsed.date = `${dMatchFull[1]}-${dMatchFull[2].padStart(2, '0')}-${dMatchFull[3].padStart(2, '0')}`;
+        } else if (dMatch) {
+          parsed.date = `${currentYear}-${dMatch[1].padStart(2, '0')}-${dMatch[2].padStart(2, '0')}`;
+        }
+
+        const textWithoutDate = clean
+          .replace(/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}/g, " ")
+          .replace(/[\+\-]\s*\d+\.\d+\s*kg/gi, " ");
+
+        // [원본 복구 적용] 바디점수
+        if (topRegions && topRegions.bodyScore >= 10 && topRegions.bodyScore <= 100) {
+          parsed.bodyScore = topRegions.bodyScore;
+        } else {
+          const bsMatch1 = textWithoutDate.match(/바디\s*점수[^\d]{0,25}([2-9]\d)/i);
+          const bsMatch2 = textWithoutDate.match(/([2-9]\d)\s*(?:점|전과\s*비교)/i);
+          const bsMatch3 = clean.match(/(?:바디\s*점수|^|\n)\s*([2-9]\d)\s*(?:\n|전과)/i);
+          if (bsMatch1) {
+            parsed.bodyScore = parseInt(bsMatch1[1], 10);
+          } else if (bsMatch2) {
+            parsed.bodyScore = parseInt(bsMatch2[1], 10);
+          } else if (bsMatch3) {
+            parsed.bodyScore = parseInt(bsMatch3[1], 10);
+          }
+        }
+
+        const kgCandidates = [];
+        for (const m of textWithoutDate.matchAll(/(\d{1,3}(?:\.\d{1,2})?)\s*kg/gi)) {
+          const v = parseFloat(m[1]);
+          if (v > 1.5) kgCandidates.push(v);
+        }
+
+        const pctCandidates = [];
+        for (const m of textWithoutDate.matchAll(/(\d{2,3}(?:\.\d{1,2})?)\s*%/g)) {
+          const norm = normalizeDecimal(m[1], 5, 85);
+          if (norm && !pctCandidates.includes(norm)) pctCandidates.push(norm);
+        }
+
+        // [원본 복구 적용] 체중
+        if (topRegions && topRegions.weight >= 35 && topRegions.weight <= 200) {
+          parsed.weight = topRegions.weight;
+        } else {
+          const wBeforeLabel = textWithoutDate.match(/(\d{2,3}\.\d{1,2})[\s\S]{0,50}?체중/);
+          const wBeforeBmi = textWithoutDate.match(/(\d{2,3}\.\d{2})[\s\S]{0,120}?BMI/i);
+          if (wBeforeLabel && parseFloat(wBeforeLabel[1]) >= 35) {
+            parsed.weight = parseFloat(wBeforeLabel[1]);
+          } else if (wBeforeBmi && parseFloat(wBeforeBmi[1]) >= 35) {
+            parsed.weight = parseFloat(wBeforeBmi[1]);
+          } else {
+            const wCand = kgCandidates.find(v => v >= 70 && v <= 200);
+            if (wCand) parsed.weight = Number(wCand.toFixed(2));
+          }
+        }
+
+        // BMI
+        const bmiMatch = textWithoutDate.match(/(?:BMI|8MI|BML|BM1|B\s*M\s*I)\s*[:\.]?\s*(\d{1,3}(?:\.\d{1,2})?)/i);
+        if (bmiMatch) {
+          parsed.bmi = normalizeDecimal(bmiMatch[1], 12, 60);
+        } else {
+          const bmiFallback = textWithoutDate.match(/(?:못함|도달|체형)[\s\S]{0,40}?(\d{2}\.\d)/i);
+          if (bmiFallback) parsed.bmi = parseFloat(bmiFallback[1]);
+        }
+
+        // 체지방률, 수분율, 단백질
+        const fatMatch = textWithoutDate.match(/체지방\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
+        parsed.fatRate = fatMatch ? normalizeDecimal(fatMatch[1], 5, 75) : (pctCandidates[0] ?? "");
+
+        const waterMatch = textWithoutDate.match(/수분\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
+        parsed.waterRate = waterMatch ? normalizeDecimal(waterMatch[1], 30, 85) : (pctCandidates[1] ?? "");
+
+        const protMatch = textWithoutDate.match(/단백질\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
+        parsed.proteinRate = protMatch ? normalizeDecimal(protMatch[1], 5, 40) : (pctCandidates[2] ?? "");
+
+        // 기초대사량
+        const bmrRegex1 = textWithoutDate.match(/(?:기초|대사량)[^\d]{0,15}(\d[\s,\.]?\d{3})/i);
+        const bmrRegex2 = textWithoutDate.match(/(\d[\s,\.]?\d{3})\s*(?:kcal|cal|kca|목표)/i);
+        const bmrRegex3 = textWithoutDate.match(/\b(1[,\.\s]?\d{3}|2[,\.\s]?\d{3})\b/);
+        const rawBmr = (bmrRegex1 && bmrRegex1[1]) || (bmrRegex2 && bmrRegex2[1]) || (bmrRegex3 && bmrRegex3[1]);
+        if (rawBmr) {
+          const bmrVal = parseInt(rawBmr.replace(/[\s,\.]/g, ''), 10);
+          if (bmrVal >= 1000 && bmrVal <= 3500 && bmrVal !== currentYear) {
+            parsed.bmr = bmrVal;
+          }
+        }
+
+        // 내장지방
+        const vMatch = textWithoutDate.match(/내장\s*지방\s*(\d{1,2})/);
+        if (vMatch) {
+          parsed.visceralFat = parseInt(vMatch[1], 10);
+        } else {
+          const vFallback = textWithoutDate.match(/(?:kcal|대사량)[\s\S]{0,60}?(?:지방|내장)[^\d]{0,10}(\d{1,2})/i);
+          if (vFallback) parsed.visceralFat = parseInt(vFallback[1], 10);
+        }
+
+        // 근육량
+        const mMatch = textWithoutDate.match(/(?:근육|근\s*육|근육량)[\s\S]{0,15}?(\d{2,4}(?:\.\d{1,2})?)/i);
+        if (mMatch) {
+          parsed.muscle = normalizeDecimal(mMatch[1], 25, 90);
+        } else {
+          const mCand = kgCandidates.find(v => v >= 30 && v <= 85 && Math.abs(v - (parsed.weight || 0)) > 1.0);
+          if (mCand) parsed.muscle = Number(mCand.toFixed(2));
+        }
+
+        // 뼈밀도
+        const boneMatch = textWithoutDate.match(/(?:뼈밀도|밀도)\s*(\d{1,3}(?:\.\d{1,2})?)/);
+        if (boneMatch) {
+          parsed.boneMass = normalizeDecimal(boneMatch[1], 1.5, 6.0);
+        } else {
+          const bCand = kgCandidates.find(v => v >= 1.5 && v <= 6.0);
+          if (bCand) parsed.boneMass = Number(bCand.toFixed(2));
+        }
+      }
+
+      currentEditingDate = null;
+      document.getElementById('modalTitle').innerText = `이미지 검토 및 병합 (${curr}/${total})`;
+      document.getElementById('modalSubtitle').innerText = "인식된 수치를 확인하고 필요한 경우 직접 수정한 후 저장하세요.";
+      document.getElementById('queueStatus').innerText = total > 1 ? `남은 이미지: ${total - curr}장` : "";
+
+      for (const [k, v] of Object.entries(parsed)) {
+        const input = document.getElementById(`m_${k}`);
+        if (input) input.value = (v !== null && v !== undefined) ? v : "";
+      }
+
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('editModal').classList.add('hidden');
+      currentEditingDate = null;
+      imageQueue = [];
+    }
+
+    function skipModalData() {
+      document.getElementById('editModal').classList.add('hidden');
+      currentEditingDate = null;
+      showToast("현재 이미지 처리를 건너뛰었습니다.", "⏭️");
+      processNextQueueItem();
+    }
+
+    function saveModalData() {
+      const date = document.getElementById('m_date').value.trim();
+      if (!date) {
+        showToast("일자를 입력해 주세요.", "⚠️");
+        return;
+      }
+
+      const getNum = (id, isFloat = true) => {
+        const val = document.getElementById(id).value.trim();
+        if (val === '') return null;
+        return isFloat ? parseFloat(val) : parseInt(val, 10);
+      };
+
+      const newData = {
+        date: date,
+        weight: getNum('m_weight'),
+        muscle: getNum('m_muscle'),
+        fatRate: getNum('m_fatRate'),
+        bmi: getNum('m_bmi'),
+        visceralFat: getNum('m_visceralFat', false),
+        waterRate: getNum('m_waterRate'),
+        proteinRate: getNum('m_proteinRate'),
+        boneMass: getNum('m_boneMass'),
+        bmr: getNum('m_bmr', false),
+        bodyScore: getNum('m_bodyScore', false),
+        steps: getNum('m_steps', false),
+        distance: getNum('m_distance'),
+        calories: getNum('m_calories', false),
+        waterIntake: getNum('m_waterIntake', false),
+        foodIntake: getNum('m_foodIntake', false)
+      };
+
+      if (currentEditingDate && currentEditingDate !== date) {
+        currentData = currentData.filter(d => d.date !== currentEditingDate);
+      }
+      currentEditingDate = null;
+
+      const existingIdx = currentData.findIndex(d => d.date === date);
+
+      if (existingIdx !== -1) {
+        for (const [key, val] of Object.entries(newData)) {
+          if (val !== null && val !== undefined) {
+            currentData[existingIdx][key] = val;
+          }
+        }
+      } else {
+        currentData.push(newData);
+      }
+
+      saveData();
+      renderTable();
+      updateChart();
+      document.getElementById('editModal').classList.add('hidden');
+      showToast(`${date} 데이터가 저장되었습니다.`, "✨");
+
+      setTimeout(() => {
+        processNextQueueItem();
+      }, 300);
+    }
+
+    function exportCSV() {
+      if (currentData.length === 0) {
+        showToast("내보낼 데이터가 없습니다.", "ℹ️");
+        return;
+      }
+      const headers = ["일자", "체중(kg)", "근육량(kg)", "체지방률(%)", "BMI", "내장지방", "수분(%)", "단백질(%)", "뼈밀도(kg)", "기초대사량(kcal)", "식사섭취(kcal)", "물섭취(ml)", "활동소모(kcal)", "총소모칼로리(TDEE)", "바디점수", "걸음수", "이동거리(km)"];
+      const keys = ["date", "weight", "muscle", "fatRate", "bmi", "visceralFat", "waterRate", "proteinRate", "boneMass", "bmr", "foodIntake", "waterIntake", "calories", "tdee", "bodyScore", "steps", "distance"];
+
+      const sorted = [...currentData].sort((a, b) => a.date.localeCompare(b.date));
+      let csvContent = "\uFEFF" + headers.join(",") + "\n";
+
+      sorted.forEach(row => {
+        const bmr = row.bmr || 0;
+        const cal = row.calories || 0;
+        const tdeeVal = (bmr > 0 || cal > 0) ? (bmr + cal) : "";
+
+        const rowData = { ...row, tdee: tdeeVal };
+        const line = keys.map(k => rowData[k] !== null && rowData[k] !== undefined ? rowData[k] : "").join(",");
+        csvContent += line + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `health_data_${getLocalDateString()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
