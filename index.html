@@ -96,7 +96,7 @@
 
     <!-- 핵심 요약 & 목표 달성 트래커 카드 -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <!-- 1 ~ 6 카드 영역 -->
+      <!-- 1. 현재 체중 & 직전 대비 변화 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>현재 체중 (최근 기록)</span>
@@ -108,6 +108,7 @@
         </div>
       </div>
 
+      <!-- 2. 목표 체중 설정 및 남은 무게 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>🎯 목표 체중 설정</span>
@@ -122,6 +123,7 @@
         </div>
       </div>
 
+      <!-- 3. 골격근량 / 체지방률 요약 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>근육량 / 체지방률</span>
@@ -140,9 +142,10 @@
         </div>
       </div>
 
+      <!-- 4. 최근 7일 평균 걸음수 & 총 소모칼로리 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
-          <span>최근 평균 걸음 / 총 소모(TDEE)</span>
+          <span id="summaryStepRangeTitle">최근 7일 평균 걸음</span>
           <span class="text-[11px] text-purple-400">활동 통계</span>
         </div>
         <div class="mt-2 flex items-baseline justify-between">
@@ -154,6 +157,7 @@
         </div>
       </div>
     
+      <!-- 5. 칼로리 밸런스 (오늘) -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>칼로리 밸런스 (오늘)</span>
@@ -172,6 +176,7 @@
         </div>
       </div>
 
+      <!-- 6. 수분 섭취 달성률 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>💧 일일 수분 목표</span>
@@ -469,6 +474,13 @@
         document.getElementById('summaryFat').innerText = '-';
         document.getElementById('summaryAvgSteps').innerText = '-';
         document.getElementById('summaryAvgCal').innerText = '- kcal';
+        document.getElementById('summaryTdee').innerText = '- kcal';
+        document.getElementById('summaryFood').innerText = '0 kcal';
+        document.getElementById('summaryWater').innerText = '0 ml';
+        document.getElementById('waterProgressBar').style.width = '0%';
+        document.getElementById('summaryWaterPct').innerText = '0% 달성';
+        document.getElementById('summaryCalBadge').innerText = '데이터 없음';
+        document.getElementById('summaryStepRangeTitle').innerText = '최근 7일 평균 걸음';
         return;
       }
 
@@ -537,9 +549,14 @@
           const cal = r.calories || 0;
           return acc + (bmr + cal);
         }, 0) / stepRecords.length);
+        
+        const firstDate = stepRecords[0].date.slice(5);
+        const lastDate = stepRecords[stepRecords.length - 1].date.slice(5);
+        document.getElementById('summaryStepRangeTitle').innerText = `최근 7일 (${firstDate}~${lastDate}) 평균 걸음`;
         document.getElementById('summaryAvgSteps').innerText = avgS.toLocaleString();
         document.getElementById('summaryAvgCal').innerText = `평균 ${avgTdee.toLocaleString()} kcal`;
       } else {
+        document.getElementById('summaryStepRangeTitle').innerText = '최근 7일 평균 걸음';
         document.getElementById('summaryAvgSteps').innerText = '-';
         document.getElementById('summaryAvgCal').innerText = '- kcal';
       }
@@ -559,11 +576,16 @@
       document.getElementById('waterProgressBar').style.width = `${waterPct}%`;
       document.getElementById('summaryWaterPct').innerText = `${waterPct}% 달성`;
 
-      // 소모(OUT) = 오늘(또는 최근) 기초대사량 + 오늘 활동 소모량
-      const baseBmr = (todayRow && todayRow.bmr) ? todayRow.bmr : (latest && latest.bmr ? latest.bmr : 0);
+      // [수정된 오늘 실시간 소모(OUT) 로직] 오늘 기록된 BMR + 오늘 활동 소모량만 반영 (전날 데이터 강제 당겨오기 차단)
+      const baseBmr = (todayRow && todayRow.bmr) ? todayRow.bmr : 0;
       const todayCal = (todayRow && todayRow.calories) ? todayRow.calories : 0;
       const tdee = (baseBmr > 0 || todayCal > 0) ? (baseBmr + todayCal) : 0;
-      document.getElementById('summaryTdee').innerText = tdee ? tdee.toLocaleString() + ' kcal' : '-';
+      
+      if (tdee > 0) {
+        document.getElementById('summaryTdee').innerText = tdee.toLocaleString() + ' kcal';
+      } else {
+        document.getElementById('summaryTdee').innerText = '오늘 미입력 (0)';
+      }
 
       const calBadge = document.getElementById('summaryCalBadge');
       if (tdee > 0) {
@@ -576,7 +598,7 @@
           calBadge.className = "text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400";
         }
       } else {
-        calBadge.innerText = "소모량 미입력";
+        calBadge.innerText = "오늘 소모량 미입력";
         calBadge.className = "text-[11px] text-slate-500";
       }
     }
@@ -708,7 +730,7 @@
       tbody.innerHTML = '';
 
       if (currentData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-slate-500 text-xs">기록된 데이터가 없습니다. 상단에서 이미지를 추가해보세요.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="18" class="p-6 text-center text-slate-500 text-xs">기록된 데이터가 없습니다. 상단에서 이미지를 추가해보세요.</td></tr>`;
         return;
       }
 
@@ -774,7 +796,7 @@
       document.getElementById('modalSubtitle').innerText = "새로운 날짜의 건강 데이터를 직접 입력합니다.";
       document.getElementById('queueStatus').innerText = "";
       
-      const keys = ["weight", "muscle", "fatRate", "bmi", "visceralFat", "waterRate", "proteinRate", "boneMass", "bmr", "bodyScore", "steps", "distance", "calories"];
+      const keys = ["weight", "muscle", "fatRate", "bmi", "visceralFat", "waterRate", "proteinRate", "boneMass", "bmr", "bodyScore", "steps", "distance", "calories", "waterIntake", "foodIntake"];
       document.getElementById('m_date').value = today;
       keys.forEach(k => {
         const input = document.getElementById(`m_${k}`);
@@ -985,10 +1007,8 @@
 
     /* ==========================================================================
        [OCR 100% 원본 복구] : 3중 복합 스캔(원본+반전본+크롭) 파이프라인 완벽 롤백 
-       - 원본의 강력한 인식률을 담당하던 로직을 그대로 살리고, Mi Fitness 날짜 필터만 결합
        ========================================================================== */
 
-    // 1. [원본 복구] 원본 이미지 색상 반전 (Blob 반환 방식 유지 + Mi Fitness 필터 추가)
     function createCleanContrastImage(file) {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -1000,10 +1020,7 @@
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const d = imgData.data;
           
-          // [원본 로직] 첫 번째 픽셀로 초록색 배경(Zepp Life) 감지
           const isGreenBg = (d[1] > 140 && d[0] < 100);
-          
-          // Mi Fitness 주황색 감지 (상단 중앙 픽셀 기준)
           const midX = Math.floor(canvas.width / 2);
           const idx = (10 * canvas.width + midX) * 4;
           const r = d[idx]; const g = d[idx+1]; const b = d[idx+2];
@@ -1030,13 +1047,11 @@
       });
     }
 
-    // 2. [원본 복구] 체중 & 바디점수 특정 좌표 크롭 인식 (가장 강력한 타겟팅)
     async function recognizeTopRegions(file, worker) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = async () => {
           try {
-            // 바디점수 영역
             const cScore = document.createElement('canvas');
             const sx1 = Math.floor(img.width * 0.25);
             const sy1 = Math.floor(img.height * 0.16);
@@ -1054,7 +1069,6 @@
             }
             ctx1.putImageData(d1, 0, 0);
 
-            // 체중 영역
             const cWeight = document.createElement('canvas');
             const sx2 = Math.floor(img.width * 0.05);
             const sy2 = Math.floor(img.height * 0.34);
@@ -1072,7 +1086,6 @@
             }
             ctx2.putImageData(d2, 0, 0);
 
-            // 메모리 안전성을 위해 순차 실행(await) 적용
             const retScore = await worker.recognize(cScore.toDataURL('image/png'));
             const retWeight = await worker.recognize(cWeight.toDataURL('image/png'));
 
@@ -1106,7 +1119,6 @@
       processNextQueueItem();
     }
 
-    // 3. [원본 복구] 원본 + 반전본 + 크롭본 동시 융합 파이프라인
     async function processNextQueueItem() {
       if (imageQueue.length === 0) {
         document.getElementById('ocrProgressBox').classList.add('hidden');
@@ -1133,13 +1145,11 @@
       try {
         updateProgress(15, "OCR 엔진 및 이미지 준비 중...");
         
-        // 메모리 절약을 위해 Worker를 매번 새로 생성/종료
         const worker = await Tesseract.createWorker('kor+eng');
         const cleanBlob = await createCleanContrastImage(file);
 
         updateProgress(45, "원본 및 반전 이미지 정밀 분석 중...");
         
-        // 폰 튕김 방지를 위해 Promise.all 대신 순차 실행으로 안전하게 전환
         const rawRet = await worker.recognize(file);
         updateProgress(65, "크롭 영역 정밀 분석 중...");
         const cleanRet = await worker.recognize(cleanBlob);
@@ -1151,7 +1161,6 @@
         updateProgress(100, "판독 완료!");
         setTimeout(() => progressBox.classList.add('hidden'), 350);
 
-        // 원본의 핵심인 두 결과 합치기 복구
         const combinedText = rawRet.data.text + "\n" + cleanRet.data.text;
         parseAndOpenModal(combinedText, topRegions, currentIdx, queueTotal);
 
@@ -1171,7 +1180,6 @@
       return null;
     }
 
-    // 4. [원본 복구] topRegions(바디점수, 체중) 우선 적용
     function parseAndOpenModal(text, topRegions = { bodyScore: null, weight: null }, curr = 1, total = 1) {
       const clean = text.replace(/\r/g, "");
       const isActivity = clean.includes("Mi Fitness") || 
@@ -1190,7 +1198,6 @@
       };
 
       if (isActivity) {
-        // [해결 1] 샤오미 Mi Fitness 날짜 유연 추출
         const dMatch = clean.match(/(\d{4})\s*[년\.\-\/\s]?\s*(\d{1,2})\s*[월\.\-\/\s]?\s*(\d{1,2})/);
         if (dMatch) {
           const y = dMatch[1];
@@ -1207,7 +1214,6 @@
         const calMatch = clean.match(/(\d{2,5})\s*kcal/i);
         if (calMatch) parsed.calories = parseInt(calMatch[1].replace(/,/g, ''), 10);
       } else {
-        // 인바디 Zepp Life
         const dMatchFull = clean.match(/(\d{4})[\.\-\/년\s]+(\d{1,2})[\.\-\/월\s]+(\d{1,2})/);
         const dMatch = clean.match(/(\d{1,2})\/(\d{1,2})/);
         if (dMatchFull) {
@@ -1220,7 +1226,6 @@
           .replace(/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}/g, " ")
           .replace(/[\+\-]\s*\d+\.\d+\s*kg/gi, " ");
 
-        // [원본 복구 적용] 바디점수
         if (topRegions && topRegions.bodyScore >= 10 && topRegions.bodyScore <= 100) {
           parsed.bodyScore = topRegions.bodyScore;
         } else {
@@ -1248,7 +1253,6 @@
           if (norm && !pctCandidates.includes(norm)) pctCandidates.push(norm);
         }
 
-        // [원본 복구 적용] 체중
         if (topRegions && topRegions.weight >= 35 && topRegions.weight <= 200) {
           parsed.weight = topRegions.weight;
         } else {
@@ -1264,7 +1268,6 @@
           }
         }
 
-        // BMI
         const bmiMatch = textWithoutDate.match(/(?:BMI|8MI|BML|BM1|B\s*M\s*I)\s*[:\.]?\s*(\d{1,3}(?:\.\d{1,2})?)/i);
         if (bmiMatch) {
           parsed.bmi = normalizeDecimal(bmiMatch[1], 12, 60);
@@ -1273,7 +1276,6 @@
           if (bmiFallback) parsed.bmi = parseFloat(bmiFallback[1]);
         }
 
-        // 체지방률, 수분율, 단백질
         const fatMatch = textWithoutDate.match(/체지방\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
         parsed.fatRate = fatMatch ? normalizeDecimal(fatMatch[1], 5, 75) : (pctCandidates[0] ?? "");
 
@@ -1283,7 +1285,6 @@
         const protMatch = textWithoutDate.match(/단백질\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
         parsed.proteinRate = protMatch ? normalizeDecimal(protMatch[1], 5, 40) : (pctCandidates[2] ?? "");
 
-        // 기초대사량
         const bmrRegex1 = textWithoutDate.match(/(?:기초|대사량)[^\d]{0,15}(\d[\s,\.]?\d{3})/i);
         const bmrRegex2 = textWithoutDate.match(/(\d[\s,\.]?\d{3})\s*(?:kcal|cal|kca|목표)/i);
         const bmrRegex3 = textWithoutDate.match(/\b(1[,\.\s]?\d{3}|2[,\.\s]?\d{3})\b/);
@@ -1295,7 +1296,6 @@
           }
         }
 
-        // 내장지방
         const vMatch = textWithoutDate.match(/내장\s*지방\s*(\d{1,2})/);
         if (vMatch) {
           parsed.visceralFat = parseInt(vMatch[1], 10);
@@ -1304,7 +1304,6 @@
           if (vFallback) parsed.visceralFat = parseInt(vFallback[1], 10);
         }
 
-        // 근육량
         const mMatch = textWithoutDate.match(/(?:근육|근\s*육|근육량)[\s\S]{0,15}?(\d{2,4}(?:\.\d{1,2})?)/i);
         if (mMatch) {
           parsed.muscle = normalizeDecimal(mMatch[1], 25, 90);
@@ -1313,7 +1312,6 @@
           if (mCand) parsed.muscle = Number(mCand.toFixed(2));
         }
 
-        // 뼈밀도
         const boneMatch = textWithoutDate.match(/(?:뼈밀도|밀도)\s*(\d{1,3}(?:\.\d{1,2})?)/);
         if (boneMatch) {
           parsed.boneMass = normalizeDecimal(boneMatch[1], 1.5, 6.0);
@@ -1434,8 +1432,8 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `health_data_${getLocalDateString()}.csv`);
-      document.body.appendChild(link);
+      link.setAttribute("download", `health_data_${getLocalDateString()}.json` /* note: fixed csv name */);
+      link.download = `health_data_${getLocalDateString()}.csv`;
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
