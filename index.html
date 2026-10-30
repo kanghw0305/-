@@ -585,30 +585,30 @@
         const startW = (first && first.weight !== null && first.weight !== undefined) ? first.weight : latest.weight;
 
         if (latest.weight === targetWeight) {
-          badge.innerText = '🎉 목표 달성!';
+          badge.innerText = '🎉 목표 달성! (100% 달성)';
           progressBar.style.width = '100%';
         } else if (targetWeight < startW) {
           const toGo = (latest.weight - targetWeight).toFixed(1);
           if (latest.weight <= targetWeight) {
-            badge.innerText = '🎉 목표 달성!';
+            badge.innerText = '🎉 목표 달성! (100% 달성)';
             progressBar.style.width = '100%';
           } else {
-            badge.innerText = `목표까지 -${toGo}kg`;
             const totalNeed = Math.max(0.1, startW - targetWeight);
             const done = Math.max(0, startW - latest.weight);
             const pct = Math.min(100, Math.max(0, Math.round((done / totalNeed) * 100)));
+            badge.innerText = `목표까지 -${toGo}kg (${pct}% 달성)`;
             progressBar.style.width = `${pct}%`;
           }
         } else {
           const toGo = (targetWeight - latest.weight).toFixed(1);
           if (latest.weight >= targetWeight) {
-            badge.innerText = '🎉 목표 달성!';
+            badge.innerText = '🎉 목표 달성! (100% 달성)';
             progressBar.style.width = '100%';
           } else {
-            badge.innerText = `목표까지 +${toGo}kg`;
             const totalNeed = Math.max(0.1, targetWeight - startW);
             const done = Math.max(0, latest.weight - startW);
             const pct = Math.min(100, Math.max(0, Math.round((done / totalNeed) * 100)));
+            badge.innerText = `목표까지 +${toGo}kg (${pct}% 달성)`;
             progressBar.style.width = `${pct}%`;
           }
         }
