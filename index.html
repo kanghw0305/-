@@ -6,7 +6,6 @@
   <title>개인 헬스 & 피트니스 트래커</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     ::-webkit-scrollbar { height: 6px; width: 6px; }
     ::-webkit-scrollbar-track { background: #1e293b; }
@@ -22,13 +21,22 @@
         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
           <span>📊</span> 헬스 & 체성분 통합 대시보드
         </h1>
-        <p class="text-sm text-slate-400 mt-1">인바디 10종 지표 및 샤오미 시계 걷기 데이터 통합 관리</p>
+        <p class="text-sm text-slate-400 mt-1">인바디 10종 지표 및 샤오미 시계 걷기 데이터 통합 관리 (Gemini API 연동)</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button onclick="document.getElementById('imageInput').click()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold rounded-lg transition shadow-md flex items-center gap-1.5 border border-indigo-500">
-          📷 이미지 자동 기록 (OCR)
+          📷 이미지 자동 분석 (Gemini)
         </button>
         <input type="file" id="imageInput" accept="image/*" multiple class="hidden" onchange="handleImageSelect(event)">
+
+        <!-- 기간별 칼로리 결산 다운로드 버튼 그룹 -->
+        <div class="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg p-0.5">
+          <span class="text-[10px] text-amber-400 font-bold px-1.5">칼로리 결산:</span>
+          <button onclick="exportPeriodCalorieCSV(7)" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] font-medium text-slate-200 rounded transition" title="최근 1주일 결산">1주</button>
+          <button onclick="exportPeriodCalorieCSV(14)" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] font-medium text-slate-200 rounded transition" title="최근 2주일 결산">2주</button>
+          <button onclick="exportPeriodCalorieCSV(21)" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] font-medium text-slate-200 rounded transition" title="최근 3주일 결산">3주</button>
+          <button onclick="exportPeriodCalorieCSV(28)" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] font-medium text-slate-200 rounded transition" title="최근 4주일 결산">4주</button>
+        </div>
 
         <button onclick="openEmptyModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg transition shadow-sm">
           + 직접 기록 추가
@@ -83,10 +91,10 @@
       </div>
     </section>
 
-    <!-- OCR 진행률 표시 바 -->
+    <!-- AI 분석 진행률 표시 바 -->
     <div id="ocrProgressBox" class="hidden bg-slate-800/90 border border-indigo-500/50 rounded-xl p-4 shadow-lg max-w-2xl mx-auto mb-4">
       <div class="flex justify-between text-xs text-indigo-300 mb-2 font-medium">
-        <span id="ocrStatusText">텍스트 인식 준비 중...</span>
+        <span id="ocrStatusText">Gemini AI 분석 준비 중...</span>
         <span id="ocrPercent">0%</span>
       </div>
       <div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-700">
@@ -254,6 +262,12 @@
         <button onclick="closeModal()" class="text-slate-400 hover:text-white text-base p-1">✕</button>
       </div>
 
+      <!-- 원본 이미지 동시 출력 미리보기 영역 -->
+      <div id="modalImageContainer" class="hidden bg-slate-900/70 border border-slate-700 rounded-lg p-2 text-center">
+        <img id="modalImagePreview" src="" alt="업로드한 원본 이미지" class="max-h-44 mx-auto rounded border border-slate-700 object-contain shadow-md">
+        <p class="text-[10px] text-indigo-300 mt-1.5 font-medium">▲ 업로드한 원본 이미지와 아래 인식된 수치를 비교하세요</p>
+      </div>
+
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs" id="modalForm">
         <div class="col-span-2 sm:col-span-3">
           <label class="block text-slate-400 mb-1 font-semibold">일자 (YYYY-MM-DD)</label>
@@ -355,6 +369,9 @@
   </div>
 
   <script>
+    // ★ Google Apps Script 웹앱 배포 URL을 아래에 입력하세요 (보안 키 숨김 처리)
+    const GAS_API_URL = "YOUR_GAS_WEB_APP_URL";
+
     const SAMPLE_DATA = [
       { date: "2026-10-22", weight: 97.8, muscle: 63.2, fatRate: 31.9, bmi: 30.2, visceralFat: 14, waterRate: 49.8, proteinRate: 15.8, boneMass: 3.40, bmr: 1890, bodyScore: 68, steps: 11200, distance: 7.2, calories: 920 },
       { date: "2026-10-23", weight: 97.4, muscle: 63.0, fatRate: 31.8, bmi: 30.1, visceralFat: 14, waterRate: 50.1, proteinRate: 15.9, boneMass: 3.39, bmr: 1885, bodyScore: 69, steps: 12500, distance: 8.0, calories: 980 },
@@ -576,7 +593,6 @@
       document.getElementById('waterProgressBar').style.width = `${waterPct}%`;
       document.getElementById('summaryWaterPct').innerText = `${waterPct}% 달성`;
 
-      // [수정된 오늘 실시간 소모(OUT) 로직] 오늘 기록된 BMR + 오늘 활동 소모량만 반영 (전날 데이터 강제 당겨오기 차단)
       const baseBmr = (todayRow && todayRow.bmr) ? todayRow.bmr : 0;
       const todayCal = (todayRow && todayRow.calories) ? todayRow.calories : 0;
       const tdee = (baseBmr > 0 || todayCal > 0) ? (baseBmr + todayCal) : 0;
@@ -781,6 +797,9 @@
       document.getElementById('modalSubtitle').innerText = `${date} 기록을 수정합니다.`;
       document.getElementById('queueStatus').innerText = "";
       
+      const previewContainer = document.getElementById('modalImageContainer');
+      if (previewContainer) previewContainer.classList.add('hidden');
+      
       const keys = ["date", "weight", "muscle", "fatRate", "bmi", "visceralFat", "waterRate", "proteinRate", "boneMass", "bmr", "bodyScore", "steps", "distance", "calories", "waterIntake", "foodIntake"];
       keys.forEach(k => {
         const input = document.getElementById(`m_${k}`);
@@ -795,6 +814,9 @@
       document.getElementById('modalTitle').innerText = "직접 기록 추가";
       document.getElementById('modalSubtitle').innerText = "새로운 날짜의 건강 데이터를 직접 입력합니다.";
       document.getElementById('queueStatus').innerText = "";
+      
+      const previewContainer = document.getElementById('modalImageContainer');
+      if (previewContainer) previewContainer.classList.add('hidden');
       
       const keys = ["weight", "muscle", "fatRate", "bmi", "visceralFat", "waterRate", "proteinRate", "boneMass", "bmr", "bodyScore", "steps", "distance", "calories", "waterIntake", "foodIntake"];
       document.getElementById('m_date').value = today;
@@ -1006,105 +1028,8 @@
     }
 
     /* ==========================================================================
-       [OCR 100% 원본 복구] : 3중 복합 스캔(원본+반전본+크롭) 파이프라인 완벽 롤백 
+       [Gemini API 연동 & 모달 원본 이미지 동시 출력 파이프라인]
        ========================================================================== */
-
-    function createCleanContrastImage(file) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width; canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const d = imgData.data;
-          
-          const isGreenBg = (d[1] > 140 && d[0] < 100);
-          const midX = Math.floor(canvas.width / 2);
-          const idx = (10 * canvas.width + midX) * 4;
-          const r = d[idx]; const g = d[idx+1]; const b = d[idx+2];
-          const isOrangeBg = (r > 200 && g > 130 && g < 220 && b < 150);
-
-          if (isGreenBg) {
-            for (let i = 0; i < d.length; i += 4) {
-              const cr = d[i];
-              const gray = Math.max(0, Math.min(255, Math.round(255 - (cr - 30) * 1.35)));
-              d[i] = gray; d[i + 1] = gray; d[i + 2] = gray;
-            }
-          } else if (isOrangeBg) {
-            for (let i = 0; i < d.length; i += 4) {
-              const br = (d[i] * 299 + d[i+1] * 587 + d[i+2] * 114) / 1000;
-              const color = br < 150 ? 0 : 255;
-              d[i] = color; d[i + 1] = color; d[i + 2] = color;
-            }
-          }
-          ctx.putImageData(imgData, 0, 0);
-          canvas.toBlob(blob => resolve(blob), 'image/png');
-        };
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
-      });
-    }
-
-    async function recognizeTopRegions(file, worker) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = async () => {
-          try {
-            const cScore = document.createElement('canvas');
-            const sx1 = Math.floor(img.width * 0.25);
-            const sy1 = Math.floor(img.height * 0.16);
-            const sw1 = Math.floor(img.width * 0.50);
-            const sh1 = Math.floor(img.height * 0.11);
-            cScore.width = 200;
-            cScore.height = Math.max(60, Math.floor(200 * (sh1 / sw1)));
-            const ctx1 = cScore.getContext('2d');
-            ctx1.drawImage(img, sx1, sy1, sw1, sh1, 0, 0, cScore.width, cScore.height);
-            const d1 = ctx1.getImageData(0, 0, cScore.width, cScore.height);
-            for (let i = 0; i < d1.data.length; i += 4) {
-              const isW = (d1.data[i] > 180 && d1.data[i + 2] > 150);
-              const v = isW ? 0 : 255;
-              d1.data[i] = v; d1.data[i+1] = v; d1.data[i+2] = v;
-            }
-            ctx1.putImageData(d1, 0, 0);
-
-            const cWeight = document.createElement('canvas');
-            const sx2 = Math.floor(img.width * 0.05);
-            const sy2 = Math.floor(img.height * 0.34);
-            const sw2 = Math.floor(img.width * 0.43);
-            const sh2 = Math.floor(img.height * 0.075);
-            cWeight.width = 240;
-            cWeight.height = Math.max(60, Math.floor(240 * (sh2 / sw2)));
-            const ctx2 = cWeight.getContext('2d');
-            ctx2.drawImage(img, sx2, sy2, sw2, sh2, 0, 0, cWeight.width, cWeight.height);
-            const d2 = ctx2.getImageData(0, 0, cWeight.width, cWeight.height);
-            for (let i = 0; i < d2.data.length; i += 4) {
-              const isW = (d2.data[i] > 175 && d2.data[i + 2] > 140);
-              const v = isW ? 0 : 255;
-              d2.data[i] = v; d2.data[i+1] = v; d2.data[i+2] = v;
-            }
-            ctx2.putImageData(d2, 0, 0);
-
-            const retScore = await worker.recognize(cScore.toDataURL('image/png'));
-            const retWeight = await worker.recognize(cWeight.toDataURL('image/png'));
-
-            const scoreMatch = retScore.data.text.match(/([1-9]\d)/);
-            const bodyScore = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
-
-            let weight = null;
-            const wMatch = retWeight.data.text.match(/(\d{2,3}\s*[\.,]\s*\d{1,2})/);
-            if (wMatch) {
-              weight = parseFloat(wMatch[1].replace(/\s/g, '').replace(',', '.'));
-            }
-            resolve({ bodyScore, weight });
-          } catch (e) {
-            resolve({ bodyScore: null, weight: null });
-          }
-        };
-        img.src = URL.createObjectURL(file);
-      });
-    }
 
     function handleImageSelect(event) {
       const files = Array.from(event.target.files);
@@ -1142,194 +1067,82 @@
         statusText.innerText = `[${currentIdx}/${queueTotal}] ${msg}`;
       };
 
+      // 1. 모달 창에 업로드한 원본 이미지 즉시 출력
+      const previewImg = document.getElementById('modalImagePreview');
+      const previewContainer = document.getElementById('modalImageContainer');
+      if (previewImg && previewContainer) {
+        previewImg.src = URL.createObjectURL(file);
+        previewContainer.classList.remove('hidden');
+      }
+
       try {
-        updateProgress(15, "OCR 엔진 및 이미지 준비 중...");
-        
-        const worker = await Tesseract.createWorker('kor+eng');
-        const cleanBlob = await createCleanContrastImage(file);
+        updateProgress(30, "이미지를 Base64로 변환 중...");
+        const base64Data = await fileToBase64(file);
 
-        updateProgress(45, "원본 및 반전 이미지 정밀 분석 중...");
-        
-        const rawRet = await worker.recognize(file);
-        updateProgress(65, "크롭 영역 정밀 분석 중...");
-        const cleanRet = await worker.recognize(cleanBlob);
-        updateProgress(85, "세부 수치 추출 중...");
-        const topRegions = await recognizeTopRegions(file, worker);
+        updateProgress(60, "Gemini AI 서버로 분석 요청 중...");
 
-        await worker.terminate();
+        if (GAS_API_URL === "YOUR_GAS_WEB_APP_URL") {
+          throw new Error("GAS_API_URL이 설정되지 않았습니다. 코드 상단의 GAS_API_URL을 입력해주세요.");
+        }
 
-        updateProgress(100, "판독 완료!");
+        const response = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ image: base64Data })
+        });
+
+        if (!response.ok) {
+          throw new Error("서버 응답 오류 (HTTP " + response.status + ")");
+        }
+
+        const result = await response.json();
+
+        updateProgress(100, "분석 완료!");
         setTimeout(() => progressBox.classList.add('hidden'), 350);
 
-        const combinedText = rawRet.data.text + "\n" + cleanRet.data.text;
-        parseAndOpenModal(combinedText, topRegions, currentIdx, queueTotal);
+        parseAndOpenModalWithGemini(result, currentIdx, queueTotal);
 
       } catch (err) {
-        console.error("OCR Error:", err);
-        showToast(`OCR 처리 오류 (${currentIdx}/${queueTotal}): ` + err.message, "⚠️");
+        console.error("Gemini API Error:", err);
+        showToast(`분석 오류 (${currentIdx}/${queueTotal}): ` + err.message, "⚠️");
         progressBox.classList.add('hidden');
-        processNextQueueItem();
+        openEmptyModal();
       }
     }
 
-    function normalizeDecimal(val, minValid, maxValid) {
-      let num = parseFloat(val);
-      if (isNaN(num)) return null;
-      while (num > maxValid) { num = num / 10; }
-      if (num >= minValid && num <= maxValid) { return Number(num.toFixed(2)); }
-      return null;
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+      });
     }
 
-    function parseAndOpenModal(text, topRegions = { bodyScore: null, weight: null }, curr = 1, total = 1) {
-      const clean = text.replace(/\r/g, "");
-      const isActivity = clean.includes("Mi Fitness") || 
-                         clean.includes("소모했습니다") || 
-                         clean.includes("닭다리") || 
-                         (clean.includes("걸음") && clean.includes("km"));
-
+    function parseAndOpenModalWithGemini(data, curr = 1, total = 1) {
       const today = getLocalDateString();
-      const currentYear = new Date().getFullYear();
-      let parsed = {
-        date: today,
-        weight: "", muscle: "", fatRate: "", bmi: "", visceralFat: "",
-        waterRate: "", proteinRate: "", boneMass: "", bmr: "", bodyScore: "",
-        steps: "", distance: "", calories: "",
-        waterIntake: "", foodIntake: ""
-      };
-
-      if (isActivity) {
-        const dMatch = clean.match(/(\d{4})\s*[년\.\-\/\s]?\s*(\d{1,2})\s*[월\.\-\/\s]?\s*(\d{1,2})/);
-        if (dMatch) {
-          const y = dMatch[1];
-          const m = dMatch[2].padStart(2, '0');
-          const d = dMatch[3].padStart(2, '0');
-          if (parseInt(m, 10) >= 1 && parseInt(m, 10) <= 12 && parseInt(d, 10) >= 1 && parseInt(d, 10) <= 31) {
-            parsed.date = `${y}-${m}-${d}`;
-          }
-        }
-        const distMatch = clean.match(/(\d+\.\d+)\s*km/i);
-        if (distMatch) parsed.distance = parseFloat(distMatch[1]);
-        const stepMatch = clean.match(/(\d{3,6})\s*걸음/);
-        if (stepMatch) parsed.steps = parseInt(stepMatch[1].replace(/,/g, ''), 10);
-        const calMatch = clean.match(/(\d{2,5})\s*kcal/i);
-        if (calMatch) parsed.calories = parseInt(calMatch[1].replace(/,/g, ''), 10);
-      } else {
-        const dMatchFull = clean.match(/(\d{4})[\.\-\/년\s]+(\d{1,2})[\.\-\/월\s]+(\d{1,2})/);
-        const dMatch = clean.match(/(\d{1,2})\/(\d{1,2})/);
-        if (dMatchFull) {
-          parsed.date = `${dMatchFull[1]}-${dMatchFull[2].padStart(2, '0')}-${dMatchFull[3].padStart(2, '0')}`;
-        } else if (dMatch) {
-          parsed.date = `${currentYear}-${dMatch[1].padStart(2, '0')}-${dMatch[2].padStart(2, '0')}`;
-        }
-
-        const textWithoutDate = clean
-          .replace(/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}/g, " ")
-          .replace(/[\+\-]\s*\d+\.\d+\s*kg/gi, " ");
-
-        if (topRegions && topRegions.bodyScore >= 10 && topRegions.bodyScore <= 100) {
-          parsed.bodyScore = topRegions.bodyScore;
-        } else {
-          const bsMatch1 = textWithoutDate.match(/바디\s*점수[^\d]{0,25}([2-9]\d)/i);
-          const bsMatch2 = textWithoutDate.match(/([2-9]\d)\s*(?:점|전과\s*비교)/i);
-          const bsMatch3 = clean.match(/(?:바디\s*점수|^|\n)\s*([2-9]\d)\s*(?:\n|전과)/i);
-          if (bsMatch1) {
-            parsed.bodyScore = parseInt(bsMatch1[1], 10);
-          } else if (bsMatch2) {
-            parsed.bodyScore = parseInt(bsMatch2[1], 10);
-          } else if (bsMatch3) {
-            parsed.bodyScore = parseInt(bsMatch3[1], 10);
-          }
-        }
-
-        const kgCandidates = [];
-        for (const m of textWithoutDate.matchAll(/(\d{1,3}(?:\.\d{1,2})?)\s*kg/gi)) {
-          const v = parseFloat(m[1]);
-          if (v > 1.5) kgCandidates.push(v);
-        }
-
-        const pctCandidates = [];
-        for (const m of textWithoutDate.matchAll(/(\d{2,3}(?:\.\d{1,2})?)\s*%/g)) {
-          const norm = normalizeDecimal(m[1], 5, 85);
-          if (norm && !pctCandidates.includes(norm)) pctCandidates.push(norm);
-        }
-
-        if (topRegions && topRegions.weight >= 35 && topRegions.weight <= 200) {
-          parsed.weight = topRegions.weight;
-        } else {
-          const wBeforeLabel = textWithoutDate.match(/(\d{2,3}\.\d{1,2})[\s\S]{0,50}?체중/);
-          const wBeforeBmi = textWithoutDate.match(/(\d{2,3}\.\d{2})[\s\S]{0,120}?BMI/i);
-          if (wBeforeLabel && parseFloat(wBeforeLabel[1]) >= 35) {
-            parsed.weight = parseFloat(wBeforeLabel[1]);
-          } else if (wBeforeBmi && parseFloat(wBeforeBmi[1]) >= 35) {
-            parsed.weight = parseFloat(wBeforeBmi[1]);
-          } else {
-            const wCand = kgCandidates.find(v => v >= 70 && v <= 200);
-            if (wCand) parsed.weight = Number(wCand.toFixed(2));
-          }
-        }
-
-        const bmiMatch = textWithoutDate.match(/(?:BMI|8MI|BML|BM1|B\s*M\s*I)\s*[:\.]?\s*(\d{1,3}(?:\.\d{1,2})?)/i);
-        if (bmiMatch) {
-          parsed.bmi = normalizeDecimal(bmiMatch[1], 12, 60);
-        } else {
-          const bmiFallback = textWithoutDate.match(/(?:못함|도달|체형)[\s\S]{0,40}?(\d{2}\.\d)/i);
-          if (bmiFallback) parsed.bmi = parseFloat(bmiFallback[1]);
-        }
-
-        const fatMatch = textWithoutDate.match(/체지방\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
-        parsed.fatRate = fatMatch ? normalizeDecimal(fatMatch[1], 5, 75) : (pctCandidates[0] ?? "");
-
-        const waterMatch = textWithoutDate.match(/수분\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
-        parsed.waterRate = waterMatch ? normalizeDecimal(waterMatch[1], 30, 85) : (pctCandidates[1] ?? "");
-
-        const protMatch = textWithoutDate.match(/단백질\s*(\d{2,3}(?:\.\d{1,2})?)\s*%/);
-        parsed.proteinRate = protMatch ? normalizeDecimal(protMatch[1], 5, 40) : (pctCandidates[2] ?? "");
-
-        const bmrRegex1 = textWithoutDate.match(/(?:기초|대사량)[^\d]{0,15}(\d[\s,\.]?\d{3})/i);
-        const bmrRegex2 = textWithoutDate.match(/(\d[\s,\.]?\d{3})\s*(?:kcal|cal|kca|목표)/i);
-        const bmrRegex3 = textWithoutDate.match(/\b(1[,\.\s]?\d{3}|2[,\.\s]?\d{3})\b/);
-        const rawBmr = (bmrRegex1 && bmrRegex1[1]) || (bmrRegex2 && bmrRegex2[1]) || (bmrRegex3 && bmrRegex3[1]);
-        if (rawBmr) {
-          const bmrVal = parseInt(rawBmr.replace(/[\s,\.]/g, ''), 10);
-          if (bmrVal >= 1000 && bmrVal <= 3500 && bmrVal !== currentYear) {
-            parsed.bmr = bmrVal;
-          }
-        }
-
-        const vMatch = textWithoutDate.match(/내장\s*지방\s*(\d{1,2})/);
-        if (vMatch) {
-          parsed.visceralFat = parseInt(vMatch[1], 10);
-        } else {
-          const vFallback = textWithoutDate.match(/(?:kcal|대사량)[\s\S]{0,60}?(?:지방|내장)[^\d]{0,10}(\d{1,2})/i);
-          if (vFallback) parsed.visceralFat = parseInt(vFallback[1], 10);
-        }
-
-        const mMatch = textWithoutDate.match(/(?:근육|근\s*육|근육량)[\s\S]{0,15}?(\d{2,4}(?:\.\d{1,2})?)/i);
-        if (mMatch) {
-          parsed.muscle = normalizeDecimal(mMatch[1], 25, 90);
-        } else {
-          const mCand = kgCandidates.find(v => v >= 30 && v <= 85 && Math.abs(v - (parsed.weight || 0)) > 1.0);
-          if (mCand) parsed.muscle = Number(mCand.toFixed(2));
-        }
-
-        const boneMatch = textWithoutDate.match(/(?:뼈밀도|밀도)\s*(\d{1,3}(?:\.\d{1,2})?)/);
-        if (boneMatch) {
-          parsed.boneMass = normalizeDecimal(boneMatch[1], 1.5, 6.0);
-        } else {
-          const bCand = kgCandidates.find(v => v >= 1.5 && v <= 6.0);
-          if (bCand) parsed.boneMass = Number(bCand.toFixed(2));
-        }
-      }
-
       currentEditingDate = null;
-      document.getElementById('modalTitle').innerText = `이미지 검토 및 병합 (${curr}/${total})`;
+      document.getElementById('modalTitle').innerText = `Gemini AI 분석 및 검토 (${curr}/${total})`;
       document.getElementById('modalSubtitle').innerText = "인식된 수치를 확인하고 필요한 경우 직접 수정한 후 저장하세요.";
       document.getElementById('queueStatus').innerText = total > 1 ? `남은 이미지: ${total - curr}장` : "";
 
-      for (const [k, v] of Object.entries(parsed)) {
-        const input = document.getElementById(`m_${k}`);
-        if (input) input.value = (v !== null && v !== undefined) ? v : "";
-      }
+      const parsedDate = data.date || today;
+      document.getElementById('m_date').value = parsedDate;
+      document.getElementById('m_weight').value = data.weight !== undefined && data.weight !== null ? data.weight : "";
+      document.getElementById('m_muscle').value = data.muscle !== undefined && data.muscle !== null ? data.muscle : "";
+      document.getElementById('m_fatRate').value = data.fatRate !== undefined && data.fatRate !== null ? data.fatRate : "";
+      document.getElementById('m_bmi').value = data.bmi !== undefined && data.bmi !== null ? data.bmi : "";
+      document.getElementById('m_visceralFat').value = data.visceralFat !== undefined && data.visceralFat !== null ? data.visceralFat : "";
+      document.getElementById('m_waterRate').value = data.waterRate !== undefined && data.waterRate !== null ? data.waterRate : "";
+      document.getElementById('m_proteinRate').value = data.proteinRate !== undefined && data.proteinRate !== null ? data.proteinRate : "";
+      document.getElementById('m_boneMass').value = data.boneMass !== undefined && data.boneMass !== null ? data.boneMass : "";
+      document.getElementById('m_bmr').value = data.bmr !== undefined && data.bmr !== null ? data.bmr : "";
+      document.getElementById('m_bodyScore').value = data.bodyScore !== undefined && data.bodyScore !== null ? data.bodyScore : "";
+      document.getElementById('m_steps').value = data.steps !== undefined && data.steps !== null ? data.steps : "";
+      document.getElementById('m_distance').value = data.distance !== undefined && data.distance !== null ? data.distance : "";
+      document.getElementById('m_calories').value = data.calories !== undefined && data.calories !== null ? data.calories : "";
+      document.getElementById('m_waterIntake').value = data.waterIntake !== undefined && data.waterIntake !== null ? data.waterIntake : "";
+      document.getElementById('m_foodIntake').value = data.foodIntake !== undefined && data.foodIntake !== null ? data.foodIntake : "";
 
       document.getElementById('editModal').classList.remove('hidden');
     }
@@ -1432,11 +1245,89 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `health_data_${getLocalDateString()}.json` /* note: fixed csv name */);
       link.download = `health_data_${getLocalDateString()}.csv`;
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      showToast("전체 데이터 CSV가 다운로드되었습니다.", "💾");
+    }
+
+    // [신규 추가] 1주~4주 기간별 칼로리 밸런스(섭취 vs 소모) 결산 및 다운로드 기능
+    function exportPeriodCalorieCSV(days) {
+      if (currentData.length === 0) {
+        showToast("내보낼 데이터가 없습니다.", "ℹ️");
+        return;
+      }
+
+      const sorted = [...currentData].sort((a, b) => b.date.localeCompare(a.date));
+      const latestDateStr = sorted[0].date;
+      const latestDate = new Date(latestDateStr);
+
+      const cutoffDate = new Date(latestDate);
+      cutoffDate.setDate(cutoffDate.getDate() - days + 1);
+
+      const filtered = currentData.filter(d => {
+        const dt = new Date(d.date);
+        return dt >= cutoffDate && dt <= latestDate;
+      }).sort((a, b) => a.date.localeCompare(b.date));
+
+      if (filtered.length === 0) {
+        showToast(`최근 ${days}일 동안의 기록이 없습니다.`, "⚠️");
+        return;
+      }
+
+      let totalFood = 0;
+      let totalTdee = 0;
+      let count = filtered.length;
+
+      const headers = ["일자", "체중(kg)", "섭취칼로리(IN)", "기초대사량(BMR)", "활동소모(Cal)", "총소모(TDEE)", "칼로리밸런스(IN-TDEE)", "물섭취(ml)", "걸음수"];
+      let csvContent = "\uFEFF" + `=== 최근 ${days}일 칼로리 밸런스 결산 리포트 ===\n`;
+      csvContent += headers.join(",") + "\n";
+
+      filtered.forEach(row => {
+        const food = row.foodIntake || 0;
+        const bmr = row.bmr || 0;
+        const cal = row.calories || 0;
+        const tdee = (bmr > 0 || cal > 0) ? (bmr + cal) : 0;
+        const balance = food - tdee;
+
+        totalFood += food;
+        totalTdee += tdee;
+
+        const line = [
+          row.date,
+          row.weight ?? "",
+          food,
+          bmr,
+          cal,
+          tdee || "",
+          tdee > 0 ? balance : "",
+          row.waterIntake || 0,
+          row.steps || 0
+        ].join(",");
+        csvContent += line + "\n";
+      });
+
+      const avgFood = Math.round(totalFood / count);
+      const avgTdee = Math.round(totalTdee / count);
+      const avgBalance = avgFood - avgTdee;
+
+      csvContent += "\n";
+      csvContent += `[기간 요약 통계 (${days}일간)]\n`;
+      csvContent += `총 섭취 칼로리 누적,${totalFood} kcal\n`;
+      csvContent += `총 소모 칼로리(TDEE) 누적,${totalTdee} kcal\n`;
+      csvContent += `평균 일일 섭취,${avgFood} kcal/일\n`;
+      csvContent += `평균 일일 소모(TDEE),${avgTdee} kcal/일\n`;
+      csvContent += `평균 일일 밸런스,${avgBalance} kcal/일 (${avgBalance <= 0 ? '감량/유지 중' : '초과 섭취 중'})\n`;
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `calorie_balance_report_${days}days_${getLocalDateString()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`최근 ${days}일 칼로리 결산 리포트가 다운로드되었습니다.`, "📊");
     }
   </script>
 </body>
