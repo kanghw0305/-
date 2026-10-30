@@ -57,22 +57,22 @@
       </div>
     </header>
 
-    <!-- [핵심 변경] 팝업 없이 화면 상단에 바로 열리는 인라인 API 설정 박스 -->
+    <!-- 상단 인라인 API 설정 박스 -->
     <section id="inlineApiPanel" class="bg-slate-800 border-2 border-amber-500/70 rounded-xl p-4 shadow-lg space-y-3">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold text-amber-400 flex items-center gap-1.5">
-          <span>🔑</span> Gemini API 키 (또는 GAS URL) 바로 등록
+          <span>🔑</span> Gemini API 키 바로 등록 (AQ... 또는 AIza... 모두 지원)
         </h2>
         <button type="button" onclick="toggleApiPanel()" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-700">닫기 ✕</button>
       </div>
       <div class="flex flex-col sm:flex-row gap-2">
-        <input type="text" id="inlineApiKeyInput" placeholder="여기에 AIza... 로 시작하는 Gemini API 키를 붙여넣으세요" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-amber-400 outline-none">
+        <input type="text" id="inlineApiKeyInput" placeholder="여기에 Gemini API 키(AQ... 또는 AIza...)를 붙여넣으세요" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-amber-400 outline-none">
         <button type="button" onclick="saveInlineApiKey()" class="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition shadow-md whitespace-nowrap">
           키 저장하기 💾
         </button>
       </div>
       <p class="text-[11px] text-slate-400 leading-relaxed">
-        💡 Google AI Studio에서 복사한 <strong>API 키(AIza...)</strong>를 그대로 붙여넣고 <strong>[키 저장하기]</strong>를 누르세요. 코드는 현재 스마트폰/PC 브라우저 내부에만 안전하게 보관됩니다.
+        💡 Google AI Studio에서 복사한 <strong>API 키(AQ... 또는 AIza...)</strong>를 붙여넣고 <strong>[키 저장하기]</strong>를 누르세요.
       </p>
     </section>
 
@@ -433,7 +433,6 @@
     let imageQueue = [];
     let queueTotal = 0;
 
-    // 인라인 API 설정 바 상태 업데이트
     function updateApiUiState() {
       const badge = document.getElementById('apiStatusBadge');
       const panel = document.getElementById('inlineApiPanel');
@@ -478,7 +477,7 @@
       localStorage.setItem('gasApiUrl', val);
       updateApiUiState();
       if (val) {
-        showToast("Gemini API 키가 안전하게 저장되었습니다!", "🔑");
+        showToast("Gemini API 키가 저장되었습니다!", "🔑");
       } else {
         showToast("API 키가 삭제되었습니다.", "ℹ️");
       }
@@ -801,7 +800,7 @@
       setTimeout(() => {
         toast.classList.remove('translate-y-0', 'opacity-100');
         toast.classList.add('translate-y-16', 'opacity-0');
-      }, 3200);
+      }, 3500);
     }
 
     let pendingConfirmAction = null;
@@ -969,7 +968,9 @@
       if (!row) return;
       currentEditingDate = date;
       document.getElementById('modalTitle').innerText = "기존 데이터 수정";
-      document.getElementById('modalSubtitle').innerText = date + " 기록을 수정합니다.";
+      const subEl = document.getElementById('modalSubtitle');
+      subEl.innerText = date + " 기록을 수정합니다.";
+      subEl.className = "text-[11px] text-slate-400";
       document.getElementById('queueStatus').innerText = "";
       
       const previewContainer = document.getElementById('modalImageContainer');
@@ -983,11 +984,18 @@
       document.getElementById('editModal').classList.remove('hidden');
     }
 
-    function openEmptyModal(keepImagePreview) {
+    function openEmptyModal(keepImagePreview, errorMessage) {
       currentEditingDate = null;
       const today = getLocalDateString();
-      document.getElementById('modalTitle').innerText = "직접 기록 추가";
-      document.getElementById('modalSubtitle').innerText = "새로운 날짜의 건강 데이터를 직접 입력합니다.";
+      document.getElementById('modalTitle').innerText = keepImagePreview ? "이미지 분석 실패 (수동 입력)" : "직접 기록 추가";
+      const subEl = document.getElementById('modalSubtitle');
+      if (errorMessage) {
+        subEl.innerText = "❌ 오류 원인: " + errorMessage;
+        subEl.className = "text-xs text-rose-400 font-bold";
+      } else {
+        subEl.innerText = "새로운 날짜의 건강 데이터를 직접 입력합니다.";
+        subEl.className = "text-[11px] text-slate-400";
+      }
       document.getElementById('queueStatus').innerText = "";
       
       if (!keepImagePreview) {
@@ -1203,7 +1211,7 @@
     }
 
     /* ==========================================================================
-       [Gemini AI 이미지 분석 & 모달 원본 이미지 동시 출력]
+       [핵심 수정] AQ... 및 AIza... 모든 Gemini API 키 완벽 호환 파이프라인
        ========================================================================== */
 
     function handleImageSelect(event) {
@@ -1214,7 +1222,6 @@
     }
 
     function startProcessingFiles(files) {
-      // 입력창에 적혀있지만 아직 저장 안 누른 키가 있다면 자동 반영
       const inlineInput = document.getElementById('inlineApiKeyInput');
       if (!GAS_API_URL && inlineInput && inlineInput.value.trim()) {
         GAS_API_URL = inlineInput.value.trim();
@@ -1279,14 +1286,26 @@
       if (rawResponse.candidates &&
           rawResponse.candidates[0] &&
           rawResponse.candidates[0].content &&
-          rawResponse.candidates[0].content.parts &&
-          rawResponse.candidates[0].content.parts[0] &&
-          rawResponse.candidates[0].content.parts[0].text) {
-        let text = rawResponse.candidates[0].content.parts[0].text;
-        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        targetObj = JSON.parse(text);
+          rawResponse.candidates[0].content.parts) {
+        const parts = rawResponse.candidates[0].content.parts;
+        let combinedText = "";
+        for (let i = 0; i < parts.length; i++) {
+          if (parts[i].text) combinedText += parts[i].text;
+        }
+        let cleanText = combinedText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          cleanText = cleanText.slice(firstBrace, lastBrace + 1);
+        }
+        targetObj = JSON.parse(cleanText);
       } else if (typeof rawResponse === 'string') {
         let cleanStr = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const firstBrace = cleanStr.indexOf('{');
+        const lastBrace = cleanStr.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          cleanStr = cleanStr.slice(firstBrace, lastBrace + 1);
+        }
         targetObj = JSON.parse(cleanStr);
       }
 
@@ -1297,6 +1316,33 @@
       return targetObj;
     }
 
+    async function callDirectGeminiApi(apiKey, modelName, prompt, base64Data) {
+      const directUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + encodeURIComponent(apiKey);
+      const payload = {
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+          ]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      };
+
+      const response = await fetch(directUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const rawJson = await response.json();
+      return { ok: response.ok, status: response.status, data: rawJson };
+    }
+
     async function analyzeImageWithGemini(base64Data) {
       const currentYear = new Date().getFullYear();
       const today = getLocalDateString();
@@ -1304,44 +1350,33 @@
       const prompt =
         "이 헬스/체성분 이미지(Zepp Life 인바디 화면 또는 Mi Fitness 활동 통계 화면)에서 수치를 정확히 읽어 순수 JSON 객체로만 반환하세요.\n" +
         "[주의사항]\n" +
-        "1. 현재 연도는 " + currentYear + "년입니다. 이미지에 '10/30 07:59 오후'처럼 연도 없이 월/일만 적혀 있다면 반드시 '" + currentYear + "-10-30' 형식(YYYY-MM-DD)으로 변환하세요. '2026년 10월 30일통계'는 '2026-10-30'으로 변환하세요. 날짜가 아예 없으면 '" + today + "'로 설정하세요.\n" +
-        "2. Zepp Life 화면에서 '전과 비교: -0.65kg' 같은 변화량 숫자는 체중(weight)이 아닙니다. '체중' 라벨 위의 큰 숫자(예: 96.15)를 weight에 넣으세요.\n" +
-        "3. Zepp Life의 '기초 대사량 1,851 kcal'는 bmr 항목에 넣으세요(활동소모 calories가 아님).\n" +
+        "1. 현재 연도는 " + currentYear + "년입니다. 이미지에 '10/29 09:26 오후' 또는 '10/30 07:59 오후'처럼 월/일만 적혀 있다면 반드시 '" + currentYear + "-10-29' 형식(YYYY-MM-DD)으로 변환하세요. '2026년 10월 30일통계'는 '2026-10-30'으로 변환하세요. 날짜가 아예 없으면 '" + today + "'로 설정하세요.\n" +
+        "2. Zepp Life 화면에서 '전과 비교: -0.35kg' 같은 변화량 숫자는 체중(weight)이 아닙니다. '체중' 라벨 위의 큰 숫자(예: 96.80, 96.15)를 weight에 넣으세요.\n" +
+        "3. Zepp Life의 '기초 대사량 1,861 kcal'는 bmr 항목에 넣으세요(활동소모 calories가 아님).\n" +
         "4. Mi Fitness의 '1140kcal 소모했습니다!'처럼 운동/활동으로 소모한 칼로리는 calories 항목에 넣고, '9.27 km'는 distance, '14169 걸음'은 steps에 넣으세요.\n" +
-        "5. 이미지에 없는 항목은 반드시 null로 설정하세요.\n\n" +
+        "5. 모든 수치 값은 단위(kg, %, kcal 등)를 뺀 순수 숫자(Number)로만 넣고, 이미지에 없는 항목은 반드시 null로 설정하세요.\n\n" +
         "반환할 JSON 키 목록:\n" +
         "{\"date\":\"YYYY-MM-DD\",\"weight\":null,\"muscle\":null,\"fatRate\":null,\"bmi\":null,\"visceralFat\":null,\"waterRate\":null,\"proteinRate\":null,\"boneMass\":null,\"bmr\":null,\"bodyScore\":null,\"steps\":null,\"distance\":null,\"calories\":null,\"waterIntake\":null,\"foodIntake\":null}";
 
       const inputConfig = GAS_API_URL.trim();
+      const isWebUrl = /^https?:\/\//i.test(inputConfig);
 
-      if (inputConfig.indexOf("AIza") === 0) {
-        const directUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(inputConfig);
-        const payload = {
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-            ]
-          }],
-          generationConfig: {
-            response_mime_type: "application/json"
-          }
-        };
-
-        const response = await fetch(directUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const rawJson = await response.json();
-        if (!response.ok) {
-          const msg = (rawJson.error && rawJson.error.message) ? rawJson.error.message : ("API 오류 (HTTP " + response.status + ")");
+      // ★ http:// 나 https:// 로 시작하지 않으면(AQ... 또는 AIza... 등) 모두 Gemini API 키로 직접 호출!
+      if (!isWebUrl) {
+        let res = await callDirectGeminiApi(inputConfig, "gemini-2.5-flash", prompt, base64Data);
+        if (!res.ok && (res.status === 404 || res.status === 400)) {
+          res = await callDirectGeminiApi(inputConfig, "gemini-2.0-flash", prompt, base64Data);
+        }
+        if (!res.ok) {
+          const msg = (res.data && res.data.error && res.data.error.message)
+            ? res.data.error.message
+            : ("API 오류 (HTTP " + res.status + ")");
           throw new Error(msg);
         }
-        return extractHealthJson(rawJson);
+        return extractHealthJson(res.data);
       }
 
+      // 사용자가 GAS 웹앱 URL(https://script.google.com/...)을 넣은 경우
       const response = await fetch(inputConfig, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1402,44 +1437,68 @@
         console.error("Gemini API Error:", err);
         showToast("분석 실패: " + err.message, "⚠️");
         progressBox.classList.add('hidden');
-        openEmptyModal(true);
+        openEmptyModal(true, err.message);
       }
     }
 
-    function parseAndOpenModalWithGemini(data, curr, total) {
+    function normalizeDateString(rawDate) {
       const today = getLocalDateString();
+      const currentYear = new Date().getFullYear();
+      if (!rawDate) return today;
+      const str = String(rawDate).trim();
+      const fullMatch = str.match(/(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})/);
+      if (fullMatch) {
+        return fullMatch[1] + "-" + fullMatch[2].padStart(2, '0') + "-" + fullMatch[3].padStart(2, '0');
+      }
+      const shortMatch = str.match(/(\d{1,2})[^\d]+(\d{1,2})/);
+      if (shortMatch) {
+        return currentYear + "-" + shortMatch[1].padStart(2, '0') + "-" + shortMatch[2].padStart(2, '0');
+      }
+      return today;
+    }
+
+    function parseAndOpenModalWithGemini(data, curr, total) {
       currentEditingDate = null;
       document.getElementById('modalTitle').innerText = "Gemini AI 분석 및 검토 (" + curr + "/" + total + ")";
-      document.getElementById('modalSubtitle').innerText = "상단 원본 사진과 아래 인식된 수치를 비교하고 필요한 경우 수정하세요.";
       document.getElementById('queueStatus').innerText = total > 1 ? ("남은 이미지: " + (total - curr) + "장") : "";
 
-      const setVal = (id, val) => {
+      let filledCount = 0;
+
+      // 숫자만 정밀하게 추출하여 <input type="number">에 안전하게 주입
+      const setNumericVal = (id, val) => {
         const el = document.getElementById(id);
         if (!el) return;
         if (val !== undefined && val !== null && val !== "") {
-          const cleaned = typeof val === 'string' ? val.replace(/,/g, '').trim() : val;
-          el.value = cleaned;
-        } else {
-          el.value = "";
+          const match = String(val).replace(/,/g, '').match(/-?\d+(\.\d+)?/);
+          if (match) {
+            el.value = match[0];
+            filledCount++;
+            return;
+          }
         }
+        el.value = "";
       };
 
-      document.getElementById('m_date').value = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) ? data.date : today;
-      setVal('m_weight', data.weight);
-      setVal('m_muscle', data.muscle);
-      setVal('m_fatRate', data.fatRate);
-      setVal('m_bmi', data.bmi);
-      setVal('m_visceralFat', data.visceralFat);
-      setVal('m_waterRate', data.waterRate);
-      setVal('m_proteinRate', data.proteinRate);
-      setVal('m_boneMass', data.boneMass);
-      setVal('m_bmr', data.bmr);
-      setVal('m_bodyScore', data.bodyScore);
-      setVal('m_steps', data.steps);
-      setVal('m_distance', data.distance);
-      setVal('m_calories', data.calories);
-      setVal('m_waterIntake', data.waterIntake);
-      setVal('m_foodIntake', data.foodIntake);
+      document.getElementById('m_date').value = normalizeDateString(data.date);
+      setNumericVal('m_weight', data.weight);
+      setNumericVal('m_muscle', data.muscle);
+      setNumericVal('m_fatRate', data.fatRate);
+      setNumericVal('m_bmi', data.bmi);
+      setNumericVal('m_visceralFat', data.visceralFat);
+      setNumericVal('m_waterRate', data.waterRate);
+      setNumericVal('m_proteinRate', data.proteinRate);
+      setNumericVal('m_boneMass', data.boneMass);
+      setNumericVal('m_bmr', data.bmr);
+      setNumericVal('m_bodyScore', data.bodyScore);
+      setNumericVal('m_steps', data.steps);
+      setNumericVal('m_distance', data.distance);
+      setNumericVal('m_calories', data.calories);
+      setNumericVal('m_waterIntake', data.waterIntake);
+      setNumericVal('m_foodIntake', data.foodIntake);
+
+      const subEl = document.getElementById('modalSubtitle');
+      subEl.innerText = "✅ Gemini AI가 총 " + filledCount + "개의 지표를 자동으로 채웠습니다. 확인 후 저장하세요.";
+      subEl.className = "text-xs text-emerald-400 font-semibold";
 
       document.getElementById('editModal').classList.remove('hidden');
     }
