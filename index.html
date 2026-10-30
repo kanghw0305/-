@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>개인 헬스 & 피트니스 트래커 (v5.1 Fixed)</title>
+  <title>개인 헬스 & 피트니스 트래커 (v5.2 Final)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -21,7 +21,7 @@
       <div>
         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
           <span>📊</span> 헬스 & 체성분 통합 대시보드
-          <span class="px-2 py-0.5 text-xs font-extrabold rounded bg-emerald-600 text-white">v5.1 Local OCR</span>
+          <span class="px-2 py-0.5 text-xs font-extrabold rounded bg-emerald-600 text-white">v5.2 Full Integrated</span>
         </h1>
         <p class="text-sm text-slate-400 mt-1">인바디 10종 지표 및 걷기 데이터 통합 관리 (내부 OCR 엔진 탑재)</p>
       </div>
@@ -69,7 +69,7 @@
         </div>
       </div>
       <div id="debugLogContainer" class="h-36 overflow-y-auto font-mono text-[11px] text-emerald-300 space-y-1 bg-slate-950 p-3 rounded border border-slate-900 select-text">
-        <div class="text-slate-500">[시스템] 대시보드 v5.1 로드 완료. 이미지를 업로드하면 내부 OCR 스캔 로그가 기록됩니다.</div>
+        <div class="text-slate-500">[시스템] 대시보드 v5.2 로드 완료. 이미지를 업로드하면 내부 OCR 스캔 로그가 기록됩니다.</div>
       </div>
     </section>
 
@@ -1214,8 +1214,27 @@
             }
             ctx2.putImageData(d2, 0, 0);
 
+            // ★ 뼈밀도 및 근육량이 위치한 하단 영역 크롭 스캔 추가
+            const cBottom = document.createElement('canvas');
+            const sx3 = Math.floor(img.width * 0.05);
+            const sy3 = Math.floor(img.height * 0.80);
+            const sw3 = Math.floor(img.width * 0.90);
+            const sh3 = Math.floor(img.height * 0.18);
+            cBottom.width = 300;
+            cBottom.height = Math.max(80, Math.floor(300 * (sh3 / sw3)));
+            const ctx3 = cBottom.getContext('2d');
+            ctx3.drawImage(img, sx3, sy3, sw3, sh3, 0, 0, cBottom.width, cBottom.height);
+            const d3 = ctx3.getImageData(0, 0, cBottom.width, cBottom.height);
+            for (let i = 0; i < d3.data.length; i += 4) {
+              const isW = (d3.data[i] > 175 && d3.data[i + 2] > 140);
+              const v = isW ? 0 : 255;
+              d3.data[i] = v; d3.data[i+1] = v; d3.data[i+2] = v;
+            }
+            ctx3.putImageData(d3, 0, 0);
+
             const retScore = await worker.recognize(cScore.toDataURL('image/png'));
             const retWeight = await worker.recognize(cWeight.toDataURL('image/png'));
+            const retBottom = await worker.recognize(cBottom.toDataURL('image/png'));
 
             const scoreMatch = retScore.data.text.match(/([1-9]\d)/);
             const bodyScore = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
@@ -1225,9 +1244,16 @@
             if (wMatch) {
               weight = parseFloat(wMatch[1].replace(/\s/g, '').replace(',', '.'));
             }
-            resolve({ bodyScore, weight });
+
+            let boneMass = null;
+            const bMatch = retBottom.data.text.match(/(\d\s*[\.,]\s*\d{2})/);
+            if (bMatch) {
+              boneMass = parseFloat(bMatch[1].replace(/\s/g, '').replace(',', '.'));
+            }
+
+            resolve({ bodyScore, weight, boneMass });
           } catch (e) {
-            resolve({ bodyScore: null, weight: null });
+            resolve({ bodyScore: null, weight: null, boneMass: null });
           }
         };
         img.src = URL.createObjectURL(file);
@@ -1323,7 +1349,7 @@
       return null;
     }
 
-    function parseAndOpenModal(text, topRegions = { bodyScore: null, weight: null }, curr = 1, total = 1) {
+    function parseAndOpenModal(text, topRegions = { bodyScore: null, weight: null, boneMass: null }, curr = 1, total = 1) {
       const clean = text.replace(/\r/g, "");
       const isActivity = clean.includes("Mi Fitness") || 
                          clean.includes("소모했습니다") || 
@@ -1455,12 +1481,16 @@
           if (mCand) parsed.muscle = Number(mCand.toFixed(2));
         }
 
-        const boneMatch = textWithoutDate.match(/(?:뼈밀도|밀도)\s*(\d{1,3}(?:\.\d{1,2})?)/);
-        if (boneMatch) {
-          parsed.boneMass = normalizeDecimal(boneMatch[1], 1.5, 6.0);
+        if (topRegions && topRegions.boneMass >= 1.5 && topRegions.boneMass <= 6.0) {
+          parsed.boneMass = topRegions.boneMass;
         } else {
-          const bCand = kgCandidates.find(v => v >= 1.5 && v <= 6.0);
-          if (bCand) parsed.boneMass = Number(bCand.toFixed(2));
+          const boneMatch = textWithoutDate.match(/(?:뼈밀도|밀도)\s*(\d{1,3}(?:\.\d{1,2})?)/);
+          if (boneMatch) {
+            parsed.boneMass = normalizeDecimal(boneMatch[1], 1.5, 6.0);
+          } else {
+            const bCand = kgCandidates.find(v => v >= 1.5 && v <= 6.0);
+            if (bCand) parsed.boneMass = Number(bCand.toFixed(2));
+          }
         }
       }
 
@@ -1504,7 +1534,6 @@
       processNextQueueItem();
     }
 
-    // ★ 저장 기능 오류 해결: 날짜 검증, 데이터 병합 및 UI 갱신 확실히 고정
     function saveModalData() {
       const date = document.getElementById('m_date').value.trim();
       if (!date) {
