@@ -21,38 +21,60 @@
         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
           <span>📊</span> 헬스 & 체성분 통합 대시보드
         </h1>
-        <p class="text-sm text-slate-400 mt-1">인바디 10종 지표 및 샤오미 시계 걷기 데이터 통합 관리 (Gemini AI 연동)</p>
+        <p class="text-sm text-slate-400 mt-1 flex items-center gap-2">
+          <span>인바디 10종 지표 및 걷기 데이터 통합 관리</span>
+          <span id="apiStatusBadge" class="px-2 py-0.5 text-[11px] font-bold rounded bg-rose-950 text-rose-400 border border-rose-800">⚠️ API 미설정</span>
+        </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button onclick="document.getElementById('imageInput').click()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold rounded-lg transition shadow-md flex items-center gap-1.5 border border-indigo-500">
+        <button type="button" onclick="document.getElementById('imageInput').click()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold rounded-lg transition shadow-md flex items-center gap-1.5 border border-indigo-500">
           📷 이미지 자동 분석 (Gemini)
         </button>
         <input type="file" id="imageInput" accept="image/*" multiple class="hidden" onchange="handleImageSelect(event)">
 
-        <button onclick="openSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1" title="API 설정">
-          <span>⚙️</span> 설정
+        <button type="button" onclick="toggleApiPanel()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 shadow-sm">
+          <span>⚙️</span> API 설정
         </button>
-        <button onclick="openEmptyModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg transition shadow-sm">
+        <button type="button" onclick="openEmptyModal(false)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg transition shadow-sm">
           + 직접 기록 추가
         </button>
-        <button onclick="exportJSON()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition" title="데이터 파일 백업">
+        <button type="button" onclick="exportJSON()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition">
           백업(JSON)
         </button>
-        <button onclick="document.getElementById('jsonRestoreInput').click()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition" title="백업 파일 불러오기">
+        <button type="button" onclick="document.getElementById('jsonRestoreInput').click()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition">
           복원
         </button>
         <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="importJSON(event)">
-        <button onclick="restoreSampleData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition">
+        <button type="button" onclick="restoreSampleData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition">
           샘플 복원
         </button>
-        <button onclick="exportCSV()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-medium rounded-lg transition">
+        <button type="button" onclick="exportCSV()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-medium rounded-lg transition">
           CSV 다운로드
         </button>
-        <button onclick="confirmClearAll()" class="px-3 py-1.5 bg-rose-600/80 hover:bg-rose-600 text-xs font-medium rounded-lg transition">
+        <button type="button" onclick="confirmClearAll()" class="px-3 py-1.5 bg-rose-600/80 hover:bg-rose-600 text-xs font-medium rounded-lg transition">
           전체 비우기
         </button>
       </div>
     </header>
+
+    <!-- [핵심 변경] 팝업 없이 화면 상단에 바로 열리는 인라인 API 설정 박스 -->
+    <section id="inlineApiPanel" class="bg-slate-800 border-2 border-amber-500/70 rounded-xl p-4 shadow-lg space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-amber-400 flex items-center gap-1.5">
+          <span>🔑</span> Gemini API 키 (또는 GAS URL) 바로 등록
+        </h2>
+        <button type="button" onclick="toggleApiPanel()" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-700">닫기 ✕</button>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input type="text" id="inlineApiKeyInput" placeholder="여기에 AIza... 로 시작하는 Gemini API 키를 붙여넣으세요" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-amber-400 outline-none">
+        <button type="button" onclick="saveInlineApiKey()" class="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition shadow-md whitespace-nowrap">
+          키 저장하기 💾
+        </button>
+      </div>
+      <p class="text-[11px] text-slate-400 leading-relaxed">
+        💡 Google AI Studio에서 복사한 <strong>API 키(AIza...)</strong>를 그대로 붙여넣고 <strong>[키 저장하기]</strong>를 누르세요. 코드는 현재 스마트폰/PC 브라우저 내부에만 안전하게 보관됩니다.
+      </p>
+    </section>
 
     <!-- 수분 & 식사 빠른 입력 퀵 패널 -->
     <section class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 sm:p-6 flex flex-col sm:flex-row gap-6 justify-between items-center shadow-lg">
@@ -62,11 +84,11 @@
           <span id="quickWaterTotal" class="text-xs font-semibold text-white bg-sky-900/50 px-2 py-0.5 rounded-full">0 ml</span>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button onclick="addWater(250)" class="flex-1 py-2 bg-slate-700 hover:bg-sky-600 text-xs font-medium rounded-lg transition">+ 1잔 (250ml)</button>
-          <button onclick="addWater(500)" class="flex-1 py-2 bg-slate-700 hover:bg-sky-600 text-xs font-medium rounded-lg transition">+ 텀블러 (500ml)</button>
+          <button type="button" onclick="addWater(250)" class="flex-1 py-2 bg-slate-700 hover:bg-sky-600 text-xs font-medium rounded-lg transition">+ 1잔 (250ml)</button>
+          <button type="button" onclick="addWater(500)" class="flex-1 py-2 bg-slate-700 hover:bg-sky-600 text-xs font-medium rounded-lg transition">+ 텀블러 (500ml)</button>
           <div class="flex-1 flex min-w-[120px]">
             <input type="number" id="customWaterInput" placeholder="직접입력" class="w-full bg-slate-900 border border-slate-600 rounded-l-lg px-2 text-xs text-white focus:border-sky-500 outline-none">
-            <button onclick="addCustomWater()" class="px-3 bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium rounded-r-lg transition">추가</button>
+            <button type="button" onclick="addCustomWater()" class="px-3 bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium rounded-r-lg transition">추가</button>
           </div>
         </div>
       </div>
@@ -80,7 +102,7 @@
         </div>
         <div class="flex gap-2">
           <input type="number" id="customFoodInput" placeholder="섭취 칼로리 (예: 600)" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none">
-          <button onclick="addCustomFood()" class="px-5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition font-bold shadow-sm">누적 ➕</button>
+          <button type="button" onclick="addCustomFood()" class="px-5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition font-bold shadow-sm">누적 ➕</button>
         </div>
       </div>
     </section>
@@ -98,7 +120,6 @@
 
     <!-- 핵심 요약 & 목표 달성 트래커 카드 -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <!-- 1. 현재 체중 & 직전 대비 변화 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>현재 체중 (최근 기록)</span>
@@ -110,7 +131,6 @@
         </div>
       </div>
 
-      <!-- 2. 목표 체중 설정 및 남은 무게 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>🎯 목표 체중 설정</span>
@@ -125,11 +145,10 @@
         </div>
       </div>
 
-      <!-- 3. 골격근량 / 체지방률 요약 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>근육량 / 체지방률</span>
-          <span class="text-[11px] text-slate-500">직전 대비</span>
+          <span class="text-[11px] text-slate-500">최근 기록</span>
         </div>
         <div class="mt-2 flex items-center justify-between">
           <div>
@@ -144,7 +163,6 @@
         </div>
       </div>
 
-      <!-- 4. 최근 7일 평균 걸음수 & 총 소모칼로리 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span id="summaryStepRangeTitle">최근 7일 평균 걸음</span>
@@ -159,7 +177,6 @@
         </div>
       </div>
     
-      <!-- 5. 칼로리 밸런스 (오늘) -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>칼로리 밸런스 (오늘)</span>
@@ -178,7 +195,6 @@
         </div>
       </div>
 
-      <!-- 6. 수분 섭취 달성률 -->
       <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between">
         <div class="flex items-center justify-between text-xs text-slate-400">
           <span>💧 일일 수분 목표</span>
@@ -206,10 +222,10 @@
           <p class="text-xs text-slate-400 mt-0.5">원하는 기간을 선택하여 누적 섭취 및 소모 밸런스를 확인하세요.</p>
         </div>
         <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-lg p-1">
-          <button onclick="setCaloriePeriod(7)" id="periodBtn7" class="px-3 py-1 text-xs font-semibold rounded bg-indigo-600 text-white transition">1주</button>
-          <button onclick="setCaloriePeriod(14)" id="periodBtn14" class="px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white transition">2주</button>
-          <button onclick="setCaloriePeriod(21)" id="periodBtn21" class="px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white transition">3주</button>
-          <button onclick="setCaloriePeriod(28)" id="periodBtn28" class="px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white transition">4주</button>
+          <button type="button" onclick="setCaloriePeriod(7)" id="periodBtn7" class="px-3 py-1 text-xs font-semibold rounded bg-indigo-600 text-white transition">1주</button>
+          <button type="button" onclick="setCaloriePeriod(14)" id="periodBtn14" class="px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white transition">2주</button>
+          <button type="button" onclick="setCaloriePeriod(21)" id="periodBtn21" class="px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white transition">3주</button>
+          <button type="button" onclick="setCaloriePeriod(28)" id="periodBtn28" class="px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white transition">4주</button>
         </div>
       </div>
 
@@ -265,575 +281,5 @@
     </section>
   </div>
 
-  <!-- 설정 모달 (Gemini API Key 직접 입력 또는 GAS URL 입력 모두 지원) -->
-  <div id="settingsModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
-        <h3 class="font-bold text-white text-base">⚙️ Gemini AI 연동 설정</h3>
-        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white text-base p-1">✕</button>
-      </div>
-      <div class="space-y-3 text-xs">
-        <div>
-          <label class="block text-indigo-300 mb-1 font-semibold">Gemini API 키 (AIza...) 또는 GAS 웹앱 URL</label>
-          <input type="password" id="settingsGasUrlInput" placeholder="AIzaSy... 키 또는 https://script.google.com/..." class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-white focus:border-indigo-500 outline-none font-mono">
-          <div class="flex items-center gap-1.5 mt-1.5">
-            <input type="checkbox" id="toggleShowKey" onchange="document.getElementById('settingsGasUrlInput').type = this.checked ? 'text' : 'password'" class="rounded bg-slate-900 border-slate-700">
-            <label for="toggleShowKey" class="text-[11px] text-slate-400 cursor-pointer">입력한 키/주소 보기</label>
-          </div>
-          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed bg-slate-900/60 p-2.5 rounded border border-slate-700/70">
-            💡 <strong class="text-emerald-400">가장 쉬운 방법:</strong> Google AI Studio에서 발급받은 <strong>Gemini API 키(AIza로 시작)</strong>를 여기에 바로 붙여넣으세요! 키는 소스코드에 남지 않고 현재 기기의 브라우저에만 안전하게 저장됩니다.
-          </p>
-        </div>
-      </div>
-      <div class="flex justify-end gap-2 pt-3 border-t border-slate-700">
-        <button onclick="closeSettingsModal()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs rounded text-slate-300 transition">취소</button>
-        <button onclick="saveSettings()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded text-white transition">저장하기</button>
-      </div>
-    </div>
-  </div>
-
   <!-- 데이터 편집/검토 모달 -->
-  <div id="editModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
-        <div>
-          <h3 class="font-bold text-white text-base" id="modalTitle">데이터 검토 및 병합</h3>
-          <p class="text-[11px] text-slate-400" id="modalSubtitle">인식된 수치를 확인하고 필요한 경우 직접 수정한 후 저장하세요.</p>
-        </div>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-base p-1">✕</button>
-      </div>
-
-      <!-- 원본 이미지 동시 출력 미리보기 영역 -->
-      <div id="modalImageContainer" class="hidden bg-slate-900/80 border border-indigo-500/40 rounded-lg p-2.5 text-center">
-        <img id="modalImagePreview" src="" alt="업로드한 원본 이미지" class="max-h-56 mx-auto rounded border border-slate-700 object-contain shadow-md">
-        <p class="text-[11px] text-indigo-300 mt-2 font-medium">▲ 업로드한 원본 이미지와 아래 인식된 수치를 눈으로 비교하세요</p>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs" id="modalForm">
-        <div class="col-span-2 sm:col-span-3">
-          <label class="block text-slate-400 mb-1 font-semibold">일자 (YYYY-MM-DD)</label>
-          <input type="date" id="m_date" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">체중 (kg)</label>
-          <input type="number" step="0.01" id="m_weight" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">근육량 (kg)</label>
-          <input type="number" step="0.01" id="m_muscle" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">체지방률 (%)</label>
-          <input type="number" step="0.1" id="m_fatRate" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">BMI</label>
-          <input type="number" step="0.1" id="m_bmi" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">내장지방</label>
-          <input type="number" id="m_visceralFat" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">수분율 (%)</label>
-          <input type="number" step="0.1" id="m_waterRate" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">단백질 (%)</label>
-          <input type="number" step="0.1" id="m_proteinRate" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">뼈밀도 (kg)</label>
-          <input type="number" step="0.01" id="m_boneMass" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">기초대사량 (kcal)</label>
-          <input type="number" id="m_bmr" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">활동소모 (kcal)</label>
-          <input type="number" id="m_calories" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">바디점수</label>
-          <input type="number" id="m_bodyScore" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">걸음수</label>
-          <input type="number" id="m_steps" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">이동거리 (km)</label>
-          <input type="number" step="0.01" id="m_distance" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-sky-400 mb-1">물 섭취 (ml)</label>
-          <input type="number" id="m_waterIntake" class="w-full bg-slate-900 border border-sky-900 rounded p-2 text-white focus:border-sky-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-emerald-400 mb-1">식사 섭취 (kcal)</label>
-          <input type="number" id="m_foodIntake" class="w-full bg-slate-900 border border-emerald-900 rounded p-2 text-white focus:border-emerald-500 outline-none">
-        </div>
-      </div>
-
-      <div class="flex justify-between items-center pt-3 border-t border-slate-700">
-        <span id="queueStatus" class="text-xs text-indigo-400 font-medium"></span>
-        <div class="flex gap-2">
-          <button onclick="skipModalData()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs rounded text-slate-300 transition">건너뛰기</button>
-          <button onclick="saveModalData()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded text-white transition">저장 및 다음</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 커스텀 삭제 확인 모달 -->
-  <div id="confirmDialog" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
-      <div class="flex items-center gap-3 text-rose-400">
-        <span class="text-2xl">⚠️</span>
-        <h4 id="confirmTitle" class="font-bold text-white text-base">데이터 삭제 확인</h4>
-      </div>
-      <p id="confirmMessage" class="text-xs text-slate-300 leading-relaxed">
-        정말로 모든 기록을 삭제하시겠습니까?<br>삭제 후에는 복구할 수 없습니다.
-      </p>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeConfirmDialog()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs rounded text-slate-300 transition">취소</button>
-        <button id="confirmActionBtn" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-xs font-semibold rounded text-white transition">삭제하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 토스트 알림 -->
-  <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 border border-slate-700 text-slate-200 px-4 py-2.5 rounded-lg shadow-xl text-xs flex items-center gap-2 transform translate-y-16 opacity-0 transition-all duration-300 z-50 pointer-events-none">
-    <span id="toastIcon">ℹ️</span>
-    <span id="toastText">알림 메시지</span>
-  </div>
-
-  <script>
-    // 로컬스토리지에서 API 키 또는 GAS URL 불러오기
-    let GAS_API_URL = (localStorage.getItem('gasApiUrl') || '').trim();
-
-    const SAMPLE_DATA = [
-      { date: "2026-10-22", weight: 97.8, muscle: 63.2, fatRate: 31.9, bmi: 30.2, visceralFat: 14, waterRate: 49.8, proteinRate: 15.8, boneMass: 3.40, bmr: 1890, bodyScore: 68, steps: 11200, distance: 7.2, calories: 920 },
-      { date: "2026-10-23", weight: 97.4, muscle: 63.0, fatRate: 31.8, bmi: 30.1, visceralFat: 14, waterRate: 50.1, proteinRate: 15.9, boneMass: 3.39, bmr: 1885, bodyScore: 69, steps: 12500, distance: 8.0, calories: 980 },
-      { date: "2026-10-24", weight: 97.2, muscle: 62.9, fatRate: 31.8, bmi: 30.0, visceralFat: 14, waterRate: 50.0, proteinRate: 15.9, boneMass: 3.38, bmr: 1880, bodyScore: 69, steps: 9800, distance: 6.3, calories: 810 },
-      { date: "2026-10-25", weight: 97.0, muscle: 62.8, fatRate: 31.7, bmi: 29.9, visceralFat: 13, waterRate: 50.3, proteinRate: 16.0, boneMass: 3.37, bmr: 1878, bodyScore: 70, steps: 14200, distance: 9.1, calories: 1100 },
-      { date: "2026-10-26", weight: 96.9, muscle: 62.7, fatRate: 31.7, bmi: 29.9, visceralFat: 13, waterRate: 50.2, proteinRate: 16.0, boneMass: 3.37, bmr: 1875, bodyScore: 70, steps: 10500, distance: 6.8, calories: 870 },
-      { date: "2026-10-27", weight: 96.9, muscle: 62.7, fatRate: 31.7, bmi: 29.9, visceralFat: 13, waterRate: 50.4, proteinRate: 16.1, boneMass: 3.36, bmr: 1874, bodyScore: 71, steps: 11800, distance: 7.5, calories: 940 },
-      { date: "2026-10-28", weight: 96.8, muscle: 62.66, fatRate: 31.7, bmi: 30.8, visceralFat: 14, waterRate: 48.7, proteinRate: 16.0, boneMass: 3.36, bmr: 1861, bodyScore: 46, steps: 13377, distance: 8.31, calories: 1055 }
-    ];
-
-    const METRICS = [
-      { key: 'weight', label: '체중(kg)', color: '#4ade80', axis: 'y', active: true, unit: 'kg' },
-      { key: 'muscle', label: '근육량(kg)', color: '#38bdf8', axis: 'y', active: false, unit: 'kg' },
-      { key: 'fatRate', label: '체지방률(%)', color: '#facc15', axis: 'y', active: false, unit: '%' },
-      { key: 'steps', label: '걸음수', color: '#c084fc', axis: 'y1', active: false, unit: '걸음' },
-      { key: 'tdee', label: '총소모칼로리(TDEE)', color: '#fb923c', axis: 'y1', active: true, unit: 'kcal' },
-      { key: 'bmi', label: 'BMI', color: '#f472b6', axis: 'y', active: false, unit: '' },
-      { key: 'visceralFat', label: '내장지방', color: '#f87171', axis: 'y', active: false, unit: '' },
-      { key: 'boneMass', label: '뼈밀도(kg)', color: '#2dd4bf', axis: 'y', active: false, unit: 'kg' },
-      { key: 'bodyScore', label: '바디점수', color: '#eab308', axis: 'y', active: false, unit: '점' },
-      { key: 'waterIntake', label: '물섭취(ml)', color: '#0ea5e9', axis: 'y1', active: false, unit: 'ml' },
-      { key: 'foodIntake', label: '식사(kcal)', color: '#10b981', axis: 'y1', active: true, unit: 'kcal' }
-    ];
-
-    let currentData = [];
-    let targetWeight = parseFloat(localStorage.getItem('targetWeight')) || 85.0;
-    let chartInstance = null;
-    let currentEditingDate = null;
-    let currentCalPeriod = 7;
-    
-    let imageQueue = [];
-    let queueTotal = 0;
-    
-    function addWater(amount) {
-      const today = getLocalDateString();
-      let row = currentData.find(d => d.date === today);
-      if (!row) {
-        row = { date: today, weight: null, muscle: null, fatRate: null, bmi: null, visceralFat: null, waterRate: null, proteinRate: null, boneMass: null, bmr: null, bodyScore: null, steps: null, distance: null, calories: null, waterIntake: 0, foodIntake: 0 };
-        currentData.push(row);
-      }
-      row.waterIntake = (row.waterIntake || 0) + amount;
-      saveData();
-      renderTable();
-      updateChart();
-      showToast(`${amount}ml 추가되었습니다. (오늘 총 ${row.waterIntake}ml)`, '💧');
-    }
-
-    function addCustomWater() {
-      const input = document.getElementById('customWaterInput');
-      const amount = parseInt(input.value, 10);
-      if (amount && amount > 0) {
-        addWater(amount);
-        input.value = '';
-      }
-    }
-
-    function addCustomFood() {
-      const input = document.getElementById('customFoodInput');
-      const amount = parseInt(input.value, 10);
-      if (amount && amount > 0) {
-        const today = getLocalDateString();
-        let row = currentData.find(d => d.date === today);
-        if (!row) {
-          row = { date: today, weight: null, muscle: null, fatRate: null, bmi: null, visceralFat: null, waterRate: null, proteinRate: null, boneMass: null, bmr: null, bodyScore: null, steps: null, distance: null, calories: null, waterIntake: 0, foodIntake: 0 };
-          currentData.push(row);
-        }
-        row.foodIntake = (row.foodIntake || 0) + amount;
-        saveData();
-        renderTable();
-        updateChart();
-        showToast(`${amount}kcal 누적되었습니다. (오늘 총 ${row.foodIntake}kcal)`, '🍚');
-        input.value = '';
-      }
-    }
-
-    function getLocalDateString() {
-      const offset = new Date().getTimezoneOffset() * 60000;
-      return new Date(Date.now() - offset).toISOString().slice(0, 10);
-    }
-
-    function loadData() {
-      const saved = localStorage.getItem('healthData');
-      if (saved !== null) {
-        try { return JSON.parse(saved); } catch(e) { return []; }
-      }
-      return SAMPLE_DATA;
-    }
-
-    function saveData() {
-      localStorage.setItem('healthData', JSON.stringify(currentData));
-      updateSummaryCards();
-      renderCalorieCard(currentCalPeriod);
-    }
-
-    function updateTargetWeight(val) {
-      const num = parseFloat(val);
-      if (!isNaN(num) && num >= 30 && num <= 200) {
-        targetWeight = num;
-        localStorage.setItem('targetWeight', targetWeight);
-        updateSummaryCards();
-        updateChart();
-        showToast(`목표 체중이 ${targetWeight}kg으로 설정되었습니다.`, "🎯"); } }  function updateSummaryCards() { const targetInput = document.getElementById('targetWeightInput'); if (targetInput && document.activeElement !== targetInput) { targetInput.value = targetWeight; }  if (currentData.length === 0) { document.getElementById('summaryLatestDate').innerText = '-'; document.getElementById('summaryCurrentWeight').innerText = '- kg'; document.getElementById('summaryWeightDelta').innerText = '-'; document.getElementById('summaryRemainBadge').innerText = '-'; document.getElementById('goalProgressBar').style.width = '0\%'; document.getElementById('summaryMuscle').innerText = '-'; document.getElementById('summaryFat').innerText = '-'; document.getElementById('summaryAvgSteps').innerText = '-'; document.getElementById('summaryAvgCal').innerText = '- kcal'; document.getElementById('summaryTdee').innerText = '- kcal'; document.getElementById('summaryFood').innerText = '0 kcal'; document.getElementById('summaryWater').innerText = '0 ml'; document.getElementById('waterProgressBar').style.width = '0\%'; document.getElementById('summaryWaterPct').innerText = '0\% 달성'; document.getElementById('summaryCalBadge').innerText = '데이터 없음'; document.getElementById('summaryStepRangeTitle').innerText = '최근 7일 평균 걸음'; return; }  const sorted = [...currentData].sort((a, b) => a.date.localeCompare(b.date)); const weightRecords = sorted.filter(d => d.weight !== null && d.weight !== undefined); const latest = weightRecords.length > 0 ? weightRecords[weightRecords.length - 1] : sorted[sorted.length - 1]; const prev = weightRecords.length > 1 ? weightRecords[weightRecords.length - 2] : null; const first = weightRecords.length > 0 ? weightRecords[0] : null;  document.getElementById('summaryLatestDate').innerText = latest.date;  if (latest.weight !== null && latest.weight !== undefined) { document.getElementById('summaryCurrentWeight').innerText = `${latest.weight} kg`;
-        if (prev && prev.weight) {
-          const diff = (latest.weight - prev.weight).toFixed(2);
-          const sign = diff > 0 ? '+' : '';
-          const deltaEl = document.getElementById('summaryWeightDelta');
-          deltaEl.innerText = `직전 대비 ${sign}${Number(diff)}kg`;
-          deltaEl.className = `text-xs font-medium px-1.5 py-0.5 rounded ${diff <= 0 ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-rose-950 text-rose-300 border border-rose-800'}`;
-        } else {
-          document.getElementById('summaryWeightDelta').innerText = '첫 기록';
-        }
-
-        const badge = document.getElementById('summaryRemainBadge');
-        const progressBar = document.getElementById('goalProgressBar');
-        const startW = (first && first.weight !== null && first.weight !== undefined) ? first.weight : latest.weight;
-
-        if (latest.weight === targetWeight) {
-          badge.innerText = '🎉 목표 달성!';
-          progressBar.style.width = '100%';
-        } else if (targetWeight < startW) {
-          const toGo = (latest.weight - targetWeight).toFixed(1);
-          if (latest.weight <= targetWeight) {
-            badge.innerText = '🎉 목표 달성!';
-            progressBar.style.width = '100%';
-          } else {
-            badge.innerText = `목표까지 -${toGo}kg`; const totalNeed = Math.max(0.1, startW - targetWeight); const done = Math.max(0, startW - latest.weight); const pct = Math.min(100, Math.max(0, Math.round((done / totalNeed) * 100))); progressBar.style.width = `${pct}%`;
-          }
-        } else {
-          const toGo = (targetWeight - latest.weight).toFixed(1);
-          if (latest.weight >= targetWeight) {
-            badge.innerText = '🎉 목표 달성!';
-            progressBar.style.width = '100%';
-          } else {
-            badge.innerText = `목표까지 +${toGo}kg`; const totalNeed = Math.max(0.1, targetWeight - startW); const done = Math.max(0, latest.weight - startW); const pct = Math.min(100, Math.max(0, Math.round((done / totalNeed) * 100))); progressBar.style.width = `${pct}%`;
-          }
-        }
-      }
-
-      document.getElementById('summaryMuscle').innerText = latest.muscle ? `${latest.muscle}kg` : '-'; document.getElementById('summaryFat').innerText = latest.fatRate ? `${latest.fatRate}%` : '-';
-
-      const stepRecords = sorted.filter(d => d.steps !== null && d.steps !== undefined).slice(-7);
-      if (stepRecords.length > 0) {
-        const avgS = Math.round(stepRecords.reduce((acc, r) => acc + r.steps, 0) / stepRecords.length);
-        const avgTdee = Math.round(stepRecords.reduce((acc, r) => {
-          const bmr = r.bmr || 0;
-          const cal = r.calories || 0;
-          return acc + (bmr + cal);
-        }, 0) / stepRecords.length);
-        
-        const firstDate = stepRecords[0].date.slice(5);
-        const lastDate = stepRecords[stepRecords.length - 1].date.slice(5);
-        document.getElementById('summaryStepRangeTitle').innerText = `최근 7일 (${firstDate}~${lastDate}) 평균 걸음`;
-        document.getElementById('summaryAvgSteps').innerText = avgS.toLocaleString();
-        document.getElementById('summaryAvgCal').innerText = `평균 ${avgTdee.toLocaleString()} kcal`; } else { document.getElementById('summaryStepRangeTitle').innerText = '최근 7일 평균 걸음'; document.getElementById('summaryAvgSteps').innerText = '-'; document.getElementById('summaryAvgCal').innerText = '- kcal'; }  const today = getLocalDateString(); const todayRow = currentData.find(d => d.date === today); const food = todayRow && todayRow.foodIntake ? todayRow.foodIntake : 0; const water = todayRow && todayRow.waterIntake ? todayRow.waterIntake : 0;  document.getElementById('quickFoodTotal').innerText = food.toLocaleString() + ' kcal'; document.getElementById('quickWaterTotal').innerText = water.toLocaleString() + ' ml';  document.getElementById('summaryFood').innerText = food.toLocaleString() + ' kcal'; document.getElementById('summaryWater').innerText = water.toLocaleString() + ' ml';  const waterPct = Math.min(100, Math.max(0, Math.round((water / 2000) * 100))); document.getElementById('waterProgressBar').style.width = `${waterPct}%`;
-      document.getElementById('summaryWaterPct').innerText = `${waterPct}\% 달성`;  const baseBmr = (todayRow && todayRow.bmr) ? todayRow.bmr : 0; const todayCal = (todayRow && todayRow.calories) ? todayRow.calories : 0; const tdee = (baseBmr > 0 \vert{}\vert{} todayCal > 0) ? (baseBmr + todayCal) : 0;  if (tdee > 0) { document.getElementById('summaryTdee').innerText = tdee.toLocaleString() + ' kcal'; } else { document.getElementById('summaryTdee').innerText = '오늘 미입력 (0)'; }  const calBadge = document.getElementById('summaryCalBadge'); if (tdee > 0) { const diff = food - tdee; if (diff > 0) { calBadge.innerText = `+${diff.toLocaleString()} (초과)`;
-          calBadge.className = "text-[11px] font-semibold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
-        } else {
-          calBadge.innerText = `${diff.toLocaleString()} (유지/감량)`; calBadge.className = "text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400"; } } else { calBadge.innerText = "오늘 소모량 미입력"; calBadge.className = "text-[11px] text-slate-500"; } }  function setCaloriePeriod(days) { currentCalPeriod = days; [7, 14, 21, 28].forEach(d => { const btn = document.getElementById(`periodBtn${d}`);
-        if (btn) {
-          if (d === days) {
-            btn.className = "px-3 py-1 text-xs font-semibold rounded bg-indigo-600 text-white transition";
-          } else {
-            btn.className = "px-3 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white transition";
-          }
-        }
-      });
-      renderCalorieCard(days);
-    }
-
-    function renderCalorieCard(days) {
-      const container = document.getElementById('calorieCardContainer');
-      if (!container) return;
-
-      if (currentData.length === 0) {
-        container.innerHTML = `<div class="col-span-4 text-center text-slate-500 text-xs py-4">데이터가 없습니다.</div>`;
-        return;
-      }
-
-      const sorted = [...currentData].sort((a, b) => b.date.localeCompare(a.date));
-      const latestDateStr = sorted[0].date;
-      const latestDate = new Date(latestDateStr);
-      const cutoffDate = new Date(latestDate);
-      cutoffDate.setDate(cutoffDate.getDate() - days + 1);
-
-      const filtered = currentData.filter(d => {
-        const dt = new Date(d.date);
-        return dt >= cutoffDate && dt <= latestDate;
-      });
-
-      if (filtered.length === 0) {
-        container.innerHTML = `<div class="col-span-4 text-center text-slate-500 text-xs py-4">최근 ${days}일 동안의 기록된 데이터가 없습니다.</div>`;
-        return;
-      }
-
-      let totalFood = 0;
-      let totalTdee = 0;
-      let count = filtered.length;
-
-      filtered.forEach(row => {
-        const food = row.foodIntake || 0;
-        const bmr = row.bmr || 0;
-        const cal = row.calories || 0;
-        const tdee = (bmr > 0 || cal > 0) ? (bmr + cal) : 0;
-        totalFood += food;
-        totalTdee += tdee;
-      });
-
-      const avgFood = Math.round(totalFood / count);
-      const avgTdee = Math.round(totalTdee / count);
-      const avgBalance = avgFood - avgTdee;
-
-      const balanceColor = avgBalance <= 0 ? 'text-emerald-400' : 'text-rose-400';
-      const balanceText = avgBalance <= 0 ? '감량/유지 모드 (-)' : '초과 섭취 모드 (+)';
-
-      container.innerHTML = `
-        <div class="bg-slate-900/70 border border-slate-700/80 rounded-xl p-3.5 flex flex-col justify-between">
-          <span class="text-[11px] text-slate-400 font-medium">총 누적 (섭취 vs 소모)</span>
-          <div class="mt-2 space-y-1">
-            <div class="flex justify-between text-xs"><span class="text-slate-500">섭취(IN)</span><span class="font-bold text-emerald-400">${totalFood.toLocaleString()} kcal</span></div>
-            <div class="flex justify-between text-xs"><span class="text-slate-500">소모(TDEE)</span><span class="font-bold text-orange-400">${totalTdee.toLocaleString()} kcal</span></div>
-          </div>
-        </div>
-
-        <div class="bg-slate-900/70 border border-slate-700/80 rounded-xl p-3.5 flex flex-col justify-between">
-          <span class="text-[11px] text-slate-400 font-medium">일일 평균 (섭취 / 소모)</span>
-          <div class="mt-2 space-y-1">
-            <div class="flex justify-between text-xs"><span class="text-slate-500">평균 섭취</span><span class="font-bold text-emerald-300">${avgFood.toLocaleString()} kcal</span></div>
-            <div class="flex justify-between text-xs"><span class="text-slate-500">평균 소모</span><span class="font-bold text-orange-300">${avgTdee.toLocaleString()} kcal</span></div>
-          </div>
-        </div>
-
-        <div class="bg-slate-900/70 border border-slate-700/80 rounded-xl p-3.5 flex flex-col justify-between">
-          <span class="text-[11px] text-slate-400 font-medium">평균 일일 밸런스</span>
-          <div class="mt-2">
-            <span class="text-lg font-extrabold ${balanceColor}">${avgBalance > 0 ? '+' : ''}${avgBalance.toLocaleString()} kcal</span>
-            <span class="block text-[10px] text-slate-500 mt-0.5">일일 평균 차이</span>
-          </div>
-        </div>
-
-        <div class="bg-slate-900/70 border border-slate-700/80 rounded-xl p-3.5 flex flex-col justify-between">
-          <span class="text-[11px] text-slate-400 font-medium">기간 상태 진단</span>
-          <div class="mt-2">
-            <span class="inline-block px-2 py-0.5 rounded text-xs font-bold ${avgBalance <= 0 ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-rose-950 text-rose-300 border border-rose-800'}">
-              ${balanceText}
-            </span>
-            <span class="block text-[10px] text-slate-500 mt-1">유효 데이터 수: ${count}일</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function openSettingsModal() {
-      document.getElementById('settingsGasUrlInput').value = GAS_API_URL;
-      document.getElementById('settingsModal').classList.remove('hidden');
-    }
-
-    function closeSettingsModal() {
-      document.getElementById('settingsModal').classList.add('hidden');
-    }
-
-    function saveSettings() {
-      const val = document.getElementById('settingsGasUrlInput').value.trim();
-      GAS_API_URL = val;
-      localStorage.setItem('gasApiUrl', val);
-      closeSettingsModal();
-      showToast("Gemini 연동 설정이 저장되었습니다.", "⚙️");
-    }
-
-    function showToast(text, icon = '✅') {
-      const toast = document.getElementById('toast');
-      document.getElementById('toastIcon').innerText = icon;
-      document.getElementById('toastText').innerText = text;
-      toast.classList.remove('translate-y-16', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-      setTimeout(() => {
-        toast.classList.remove('translate-y-0', 'opacity-100');
-        toast.classList.add('translate-y-16', 'opacity-0');
-      }, 3200);
-    }
-
-    let pendingConfirmAction = null;
-    function openConfirm(title, message, btnText, onConfirm) {
-      document.getElementById('confirmTitle').innerText = title;
-      document.getElementById('confirmMessage').innerHTML = message;
-      const actBtn = document.getElementById('confirmActionBtn');
-      actBtn.innerText = btnText;
-      pendingConfirmAction = onConfirm;
-      actBtn.onclick = () => {
-        if (pendingConfirmAction) pendingConfirmAction();
-        closeConfirmDialog();
-      };
-      document.getElementById('confirmDialog').classList.remove('hidden');
-    }
-
-    function closeConfirmDialog() {
-      document.getElementById('confirmDialog').classList.add('hidden');
-      pendingConfirmAction = null;
-    }
-
-    function confirmClearAll() {
-      openConfirm(
-        "전체 데이터 비우기",
-        "정말로 모든 기록을 삭제하시겠습니까?<br><span class='text-rose-400 font-semibold'>삭제 후에는 저장된 모든 데이터가 초기화됩니다.</span>",
-        "전체 삭제",
-        () => {
-          currentData = [];
-          saveData();
-          renderTable();
-          updateChart();
-          showToast("모든 데이터가 깔끔하게 초기화되었습니다.", "🗑️");
-        }
-      );
-    }
-
-    function restoreSampleData() {
-      openConfirm(
-        "샘플 데이터 복원",
-        "기본 7일치 샘플 데이터로 복원하시겠습니까?",
-        "복원하기",
-        () => {
-          currentData = JSON.parse(JSON.stringify(SAMPLE_DATA));
-          saveData();
-          renderTable();
-          updateChart();
-          showToast("기본 샘플 데이터가 복원되었습니다.", "🔄");
-        }
-      );
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      currentData = loadData();
-      updateSummaryCards();
-      renderCalorieCard(currentCalPeriod);
-      renderChips();
-      renderTable();
-      initChart();
-      initClipboardAndDrop();
-    });
-
-    function initClipboardAndDrop() {
-      window.addEventListener('paste', (e) => {
-        const items = e.clipboardData && e.clipboardData.items;
-        if (!items) return;
-        const files = [];
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].type.indexOf('image') !== -1) {
-            const f = items[i].getAsFile();
-            if (f) files.push(f);
-          }
-        }
-        if (files.length > 0) {
-          e.preventDefault();
-          startProcessingFiles(files);
-        }
-      });
-
-      const dropZone = document.body;
-      if (dropZone) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-          dropZone.addEventListener(eventName, (e) => { e.preventDefault(); }, false);
-        });
-        dropZone.addEventListener('drop', (e) => {
-          const dt = e.dataTransfer;
-          const files = dt ? Array.from(dt.files).filter(f => f.type.startsWith('image/')) : [];
-          if (files.length > 0) {
-            startProcessingFiles(files);
-          }
-        }, false);
-      }
-    }
-
-    function renderChips() {
-      const container = document.getElementById('metricChips');
-      container.innerHTML = '';
-      METRICS.forEach(m => {
-        const btn = document.createElement('button');
-        btn.className = `px-2.5 py-1 rounded-full text-xs font-medium border transition ${
-          m.active 
-            ? 'bg-slate-700 border-indigo-400 text-white shadow-sm' 
-            : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-        }`;
-        btn.innerHTML = `<span class="inline-block w-2 h-2 rounded-full mr-1.5" style="background:${m.color}"></span>${m.label}`;
-        btn.onclick = () => {
-          m.active = !m.active;
-          renderChips();
-          updateChart();
-        };
-        container.appendChild(btn);
-      });
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById('dataTableBody');
-      tbody.innerHTML = '';
-
-      if (currentData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="18" class="p-6 text-center text-slate-500 text-xs">기록된 데이터가 없습니다. 상단에서 이미지를 추가해보세요.</td></tr>`;
-        return;
-      }
-
-      const sorted = [...currentData].sort((a, b) => b.date.localeCompare(a.date));
-
-      sorted.forEach(row => {
-        const bmr = row.bmr || 0;
-        const cal = row.calories || 0;
-        const tdee = (bmr > 0 || cal > 0) ? (bmr + cal) : '-';
-
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-700/35 transition cursor-pointer";
-        tr.onclick = (e) => {
-          if (e.target.tagName.toLowerCase() !== 'button') editExistingRow(row.date);
-        };
-        tr.innerHTML = `
-          <td class="p-2.5 font-medium text-indigo-300 underline decoration-dotted" title="클릭하여 수정">${row.date}</td>
-          <td class="p-2.5 font-semibold text-emerald-400">${row.weight ?? '-'}</td>
-          <td class="p-2.5">${row.muscle ?? '-'}</td>
-          <td class="p-2.5">${row.fatRate ?? '-'}</td>
-          <td class="p-2.5">${row.bmi ?? '-'}</td>
-          <td class="p-2.5">${row.visceralFat ?? '-'}</td>
-          <td class="p-2.5">${row.waterRate ?? '-'}</td>
-          <td class="p-2.5">${row.proteinRate ?? '-'}</td>
-          <td class="p-2.5">${row.boneMass ?? '-'}</td>
-          <td class="p-2.5">${row.bmr ?? '-'}</td>
-          <td class="p-2.5 font-bold text-emerald-
+  <div id="editModal" class="
